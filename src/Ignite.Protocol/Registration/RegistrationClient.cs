@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using Ignite.Protocol.Crypto;
 using Ignite.Protocol.Http;
+using Ignite.Protocol.Net;
 
 namespace Ignite.Protocol.Registration;
 
@@ -60,12 +61,23 @@ public sealed class RegistrationClient
         }
     }
 
+    // A console in pairing mode ignores a unicast search and only answers a broadcast one, so the
+    // search goes to the console, to its subnet's broadcast address and to the limited broadcast.
     private async Task<IPAddress> SearchAsync(IPAddress console, CancellationToken cancellationToken)
     {
         using var socket = new Socket(console.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
         socket.EnableBroadcast = true;
         socket.Bind(new IPEndPoint(console.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any, 0));
-        await socket.SendToAsync(SearchRequest, SocketFlags.None, new IPEndPoint(console, _port), cancellationToken);
+        foreach (var target in SearchTargets(console))
+        {
+            try
+            {
+                await socket.SendToAsync(SearchRequest, SocketFlags.None, new IPEndPoint(target, _port), cancellationToken);
+            }
+            catch (SocketException) when (!target.Equals(console))
+            {
+            }
+        }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(SearchTimeout);
@@ -82,11 +94,21 @@ public sealed class RegistrationClient
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new RemotePlayException(RemotePlayError.ConsoleNotFound, "The console did not answer the registration search.");
+            throw new RemotePlayException(RemotePlayError.ConsoleNotFound, "The console did not answer the registration search. Is the Pair Device screen open on the PS5?");
         }
         catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset)
         {
             throw new RemotePlayException(RemotePlayError.ConsoleNotFound, "Remote Play is not listening on the console.");
         }
+    }
+
+    private static IEnumerable<IPAddress> SearchTargets(IPAddress console)
+    {
+        yield return console;
+        if (console.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(console))
+            yield break;
+        if (LocalNetwork.BroadcastAddressFor(console) is { } subnetBroadcast)
+            yield return subnetBroadcast;
+        yield return IPAddress.Broadcast;
     }
 }

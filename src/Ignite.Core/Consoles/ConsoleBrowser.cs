@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using Ignite.Protocol.Discovery;
+using Ignite.Protocol.Net;
 
 namespace Ignite.Core.Consoles;
 
@@ -144,7 +144,7 @@ public sealed class ConsoleBrowser : IAsyncDisposable
     private HashSet<IPAddress> Targets()
     {
         var targets = new HashSet<IPAddress> { IPAddress.Broadcast };
-        foreach (var address in DirectedBroadcastAddresses())
+        foreach (var address in LocalNetwork.DirectedBroadcastAddresses())
             targets.Add(address);
         foreach (var address in _manualAddresses.Keys)
             targets.Add(address);
@@ -155,26 +155,5 @@ public sealed class ConsoleBrowser : IAsyncDisposable
         }
 
         return targets;
-    }
-
-    // Limited broadcast only reaches one interface on some systems, so also use each
-    // interface's directed broadcast address.
-    private static IEnumerable<IPAddress> DirectedBroadcastAddresses()
-    {
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
-        {
-            if (networkInterface.OperationalStatus != OperationalStatus.Up || networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                continue;
-            foreach (var unicast in networkInterface.GetIPProperties().UnicastAddresses)
-            {
-                if (unicast.Address.AddressFamily != AddressFamily.InterNetwork || unicast.IPv4Mask is null)
-                    continue;
-                var address = unicast.Address.GetAddressBytes();
-                var mask = unicast.IPv4Mask.GetAddressBytes();
-                for (var i = 0; i < 4; i++)
-                    address[i] |= (byte)~mask[i];
-                yield return new IPAddress(address);
-            }
-        }
     }
 }

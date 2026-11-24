@@ -6,15 +6,22 @@ The client needs: console address, PSN account id (8 bytes) and the PIN.
 
 ## Step 1: UDP search
 
-1. Create a UDP socket, connect it to `<console>:9295` (or bind and send to a broadcast
-   address when the console address is not known).
-2. Send the 5 bytes `SRC3\0`.
+1. Create a UDP socket with broadcast enabled, bound to any local port.
+2. Send the 5 bytes `SRC3\0` to UDP port 9295 of the console **and to the broadcast
+   address** (the directed broadcast of the console's subnet, plus `255.255.255.255`).
 3. Wait up to 3 s for a datagram that starts with `RES3`. Its sender is the console.
    An ICMP "port unreachable" (connection refused) means Remote Play is not listening.
-   Observed on a real PS5: with the pairing screen closed, `SRC3` gets no answer at all, so
-   a timeout usually means the user has not opened *Pair Device* yet.
 4. Wait about 100 ms before the next step; the console does not accept the TCP request
    immediately.
+
+Observed on a real PS5 (system software of November 2026):
+
+- With the *Pair Device* screen open, the console ignores `SRC3` sent to its own address and
+  answers only the broadcast one, from port 9295, with `RES3 01 01 00`.
+- It answered the first broadcast `SRC3` only; later ones in the same pairing session got no
+  answer, so the TCP request should follow the first `RES3` promptly.
+- With the pairing screen closed it answers nothing, so a timeout usually means the user has
+  not opened *Pair Device*.
 
 ## Step 2: build the payload
 
