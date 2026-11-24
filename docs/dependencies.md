@@ -12,8 +12,8 @@ translating their source code into Ignite would make Ignite a derivative work, s
 allowed (see `AGENTS.md`).
 
 The protocol constant tables (see `docs/protocol/03-rpcrypt.md`) are data required for
-interoperability with the console, not creative code. They are kept in one file with a note
-on their origin.
+interoperability with the console. They are embedded in `Ignite.Protocol` as a binary
+resource (`Crypto/rpcrypt-tables.bin`).
 
 The OAuth client id/secret of the official Remote Play app are not stored in the repository;
 they are supplied through configuration.

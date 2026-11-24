@@ -4,4 +4,8 @@
     <InternalsVisibleTo Include="Ignite.Protocol.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Crypto/rpcrypt-tables.bin" LogicalName="Ignite.Protocol.Crypto.rpcrypt-tables.bin" />
+  </ItemGroup>
+
 </Project>

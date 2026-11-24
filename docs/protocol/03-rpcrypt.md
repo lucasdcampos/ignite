@@ -80,9 +80,13 @@ The protocol depends on fixed tables extracted from the official client:
 | `KEYS_A` | 0x70 × 32 bytes | Session `ambassador` |
 | `KEYS_B` | 0x70 × 32 bytes | Session `bright` |
 
-The values are not reproduced in this document. In code they live in a single internal
-class in `Ignite.Protocol` (`RpCryptTables`) and are covered by known-answer tests built
-from captured exchanges.
+The values are not listed in this document. They were taken from open source projects like
+Chiaki and are embedded in `Ignite.Protocol` as `Crypto/rpcrypt-tables.bin` (8208 bytes: the
+HMAC key, `KEYS_0`, `KEYS_1`, `KEYS_A`, `KEYS_B`, in that order). `RpCryptTables.Default`
+loads the resource and verifies its SHA-256.
+
+AES-CFB128 is implemented on top of AES-ECB because the .NET CFB API only accepts whole
+blocks, while Remote Play messages have arbitrary lengths.
 
 ## Test vectors
 
