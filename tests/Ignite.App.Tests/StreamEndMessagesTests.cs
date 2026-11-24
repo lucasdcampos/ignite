@@ -24,6 +24,15 @@ public sealed class StreamEndMessagesTests
     }
 
     [Fact]
+    public void LostConnectionIsExplained()
+    {
+        var message = StreamEndMessages.ForEnd($"{Ignite.Protocol.Stream.StreamConnection.ConnectionLostReason} Nothing received from the console for 5 s.");
+
+        Assert.StartsWith("The connection to your PS5 was lost.", message, StringComparison.Ordinal);
+        Assert.Equal("Connection closed", StreamEndMessages.ForEnd("Connection closed"));
+    }
+
+    [Fact]
     public void BusyConsoleAsksToWait()
     {
         var busy = RemotePlayException.FromApplicationReason(0x80108b10, "Session request");

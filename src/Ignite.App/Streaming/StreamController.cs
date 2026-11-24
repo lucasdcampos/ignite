@@ -37,6 +37,8 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     private readonly Channel<(byte[] Frame, byte[]? Header)> _frames =
         Channel.CreateBounded<(byte[], byte[]?)>(new BoundedChannelOptions(8) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
     private readonly CancellationTokenSource _stop = new();
+    private readonly Lock _stopLock = new();
+    private Task? _stopping;
     private readonly Stopwatch _statsClock = Stopwatch.StartNew();
     private RemotePlaySession? _session;
     private VideoDecoder? _decoder;
@@ -110,7 +112,14 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         return _statistics;
     }
 
-    public async Task StopAsync()
+    /// <summary>Ends the session; safe to call several times and from any thread.</summary>
+    public Task StopAsync()
+    {
+        lock (_stopLock)
+            return _stopping ??= StopCoreAsync();
+    }
+
+    private async Task StopCoreAsync()
     {
         _passcodeRequest?.TrySetResult(null);
         await _stop.CancelAsync();
@@ -122,8 +131,9 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
             await _decodeLoop;
         if (State != StreamState.Ended)
         {
+            // The user ended the stream: nothing to report.
             State = StreamState.Ended;
-            Message ??= "Disconnected.";
+            Message = null;
         }
     }
 
@@ -193,7 +203,11 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     void IStreamSink.OnPadInfo(PadInfo info) => GamepadFeedback.Enqueue(g => g.SetLightbar(info.Red, info.Green, info.Blue));
 
-    void IStreamSink.OnDisconnected(string reason) => Message = StreamEndMessages.ForDisconnect(reason);
+    void IStreamSink.OnDisconnected(string reason)
+    {
+        if (!IsStopping)
+            Message = StreamEndMessages.ForDisconnect(reason);
+    }
 
     private async Task ConnectAsync(RpCryptTables tables, IPAddress address, StoredConsole console, StreamOptions options)
     {
@@ -204,18 +218,21 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
             State = StreamState.Streaming;
             Message = null;
             var reason = await _session.WaitForEndAsync();
-            Message ??= reason;
+            Message ??= StreamEndMessages.ForEnd(reason);
         }
         catch (OperationCanceledException)
         {
-            Message ??= "Disconnected.";
         }
         catch (Exception e) when (e is RemotePlayException or IOException or System.Net.Sockets.SocketException or InvalidOperationException or System.Security.Cryptography.CryptographicException)
         {
             Message = StreamEndMessages.ForFailure(e);
         }
 
+        if (IsStopping)
+            Message = null;
         State = StreamState.Ended;
+        // Release the session right away so the console stops streaming and can accept the next one.
+        await StopAsync();
     }
 
     private string DescribeDecoder() => _decoder switch

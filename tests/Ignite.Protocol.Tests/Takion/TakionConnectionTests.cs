@@ -38,6 +38,44 @@ public class TakionConnectionTests
     }
 
     [Fact]
+    public async Task SilentConsole_IsReportedAsClosedOnce()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var console = new FakeTakionConsole();
+        var handler = new RecordingHandler();
+        var accept = console.AcceptAsync(timeout.Token);
+        await using var connection = await TakionConnection.ConnectAsync(console.EndPoint, handler, false, timeout.Token);
+        await accept;
+
+        connection.SilenceTimeout = TimeSpan.FromMilliseconds(500);
+        while (handler.Closed.IsEmpty)
+            await Task.Delay(50, timeout.Token);
+        await Task.Delay(600, timeout.Token);
+
+        Assert.IsType<TimeoutException>(Assert.Single(handler.Closed));
+    }
+
+    [Fact]
+    public async Task ConsoleThatKeepsSending_IsNotReportedAsSilent()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var console = new FakeTakionConsole();
+        var handler = new RecordingHandler();
+        var accept = console.AcceptAsync(timeout.Token);
+        await using var connection = await TakionConnection.ConnectAsync(console.EndPoint, handler, false, timeout.Token);
+        await accept;
+
+        connection.SilenceTimeout = TimeSpan.FromMilliseconds(600);
+        for (var i = 0u; i < 10; i++)
+        {
+            await console.SendDataAsync(FakeTakionConsole.ConsoleTag + i, TakionDataType.Protobuf, [1], timeout.Token);
+            await Task.Delay(150, timeout.Token);
+        }
+
+        Assert.Empty(handler.Closed);
+    }
+
+    [Fact]
     public async Task Data_IsDeliveredInOrder()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));

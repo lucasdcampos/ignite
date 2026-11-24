@@ -19,9 +19,15 @@ public sealed class StreamConnection : ITakionHandler, IVideoReceiverSink, IAudi
     public const int DefaultPort = 9296;
     public const uint ClientVersion = 12;
 
+    /// <summary>Start of the <see cref="Disconnected"/> reason when the console stopped sending.</summary>
+    public const string ConnectionLostReason = "Connection lost.";
+
     private static readonly TimeSpan ExpectTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan CongestionInterval = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>A streaming console sends video, audio and acks continuously; this much silence means the link is gone.</summary>
+    private static readonly TimeSpan ConnectionLostTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IStreamSink _sink;
     private readonly StreamOptions _options;
@@ -158,8 +164,12 @@ public sealed class StreamConnection : ITakionHandler, IVideoReceiverSink, IAudi
         }
     }
 
-    void ITakionHandler.OnClosed(Exception? exception) =>
-        _disconnected.TrySetResult(exception is null ? "Connection closed" : exception.Message);
+    void ITakionHandler.OnClosed(Exception? exception) => _disconnected.TrySetResult(exception switch
+    {
+        null => "Connection closed",
+        TimeoutException => $"{ConnectionLostReason} {exception.Message}",
+        _ => exception.Message,
+    });
 
     void IVideoReceiverSink.OnFrame(ReadOnlyMemory<byte> frame, ReadOnlyMemory<byte>? streamHeader, bool recoveredWithFec) =>
         _sink.OnVideoFrame(frame, streamHeader, recoveredWithFec);
@@ -235,6 +245,7 @@ public sealed class StreamConnection : ITakionHandler, IVideoReceiverSink, IAudi
 
         _feedback = new FeedbackSender(this);
         _periodic = Task.Run(() => RunPeriodicAsync(_stop.Token), CancellationToken.None);
+        _takion.SilenceTimeout = ConnectionLostTimeout;
     }
 
     private async Task<T> WaitAsync<T>(Task<T> task, string name, CancellationToken cancellationToken)

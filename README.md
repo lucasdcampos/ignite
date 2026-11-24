@@ -53,7 +53,8 @@ The first time Ignite opens, a short setup guides you through three steps:
 
 After that, the home screen shows your consoles. Click **Play** (or **Turn on and play** if
 the console is in rest mode). While streaming, **F1** shows statistics and the disconnect
-button and **F11** toggles fullscreen.
+button and **F11** toggles fullscreen. Closing the window ends the stream and returns to the
+home screen, as does a lost connection.
 
 Keyboard fallback: arrows = D-pad, Enter = Cross, Backspace = Circle, Space = Square,
 Tab = Triangle, WASD = left stick, IJKL = right stick, Q/E = L1/R1, 1/3 = L2/R2,

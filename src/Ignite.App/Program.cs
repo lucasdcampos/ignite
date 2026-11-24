@@ -51,9 +51,20 @@ internal static class Program
         {
             frameCount++;
             var streaming = stream is { State: StreamState.Connecting or StreamState.Streaming, IsStopping: false };
-            running = SdlHost.PumpEvents(e =>
+            SdlHost.PumpEvents(e =>
             {
                 var type = (SDLEventType)e.Type;
+                if (type == SDLEventType.Quit)
+                    running = false;
+                if (type == SDLEventType.WindowCloseRequested)
+                {
+                    // While streaming, closing the window ends the stream and returns to the launcher.
+                    if (streaming)
+                        _ = stream!.StopAsync();
+                    else
+                        running = false;
+                }
+
                 if (type is SDLEventType.GamepadAdded or SDLEventType.GamepadRemoved)
                     gamepad.Refresh();
                 if (type is SDLEventType.AudioDeviceAdded or SDLEventType.AudioDeviceRemoved)
@@ -69,6 +80,7 @@ internal static class Program
                 }
             });
 
+            streaming = stream is { State: StreamState.Connecting or StreamState.Streaming, IsStopping: false };
             host.SetVSync(services.Settings.Current.VSync);
             host.BeginFrame();
 

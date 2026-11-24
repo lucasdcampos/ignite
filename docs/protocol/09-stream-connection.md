@@ -177,3 +177,13 @@ not a DualSense), then start sending input feedback.
 | `CORRUPTFRAME` | client → console | `start`, `end`: frame indices that were lost or broken |
 | `CONNECTIONQUALITY` | console → client | Informational |
 | `DISCONNECT` | both | `reason` text; the client sends `"Client Disconnecting"` when it quits |
+
+### Detecting a lost connection
+
+Nothing in the protocol tells the client that the console or the network went away: Takion
+is UDP, and the ctrl TCP connection may stay open without traffic. A streaming console sends
+video, audio and DATA_ACKs continuously (about 55 video frames per second even on a static
+screen, observed on a PS5), so the client treats silence as a lost connection. Ignite ends
+the stream when no datagram at all has arrived for 5 s after STREAMINFO (a 45 s stream on a
+real console never came close). It then sends `DISCONNECT` anyway, so a console that is
+still reachable stops streaming and accepts the next session request.

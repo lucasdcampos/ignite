@@ -20,6 +20,8 @@ internal sealed unsafe class SdlHost : IDisposable
 
     public SdlHost(string title, int width, int height)
     {
+        // Closing the window while streaming only ends the stream, so it must not quit SDL.
+        SDL.SetHint("SDL_QUIT_ON_LAST_WINDOW_CLOSE", "0");
         if (!SDL.Init(SDL.SDL_INIT_VIDEO | SDL.SDL_INIT_AUDIO | SDL.SDL_INIT_GAMEPAD | SDL.SDL_INIT_EVENTS))
             throw new InvalidOperationException($"SDL initialisation failed: {LastError}");
 
@@ -97,20 +99,15 @@ internal sealed unsafe class SdlHost : IDisposable
 
     public void SetFullscreen(bool fullscreen) => SDL.SetWindowFullscreen(Window, fullscreen);
 
-    /// <summary>Polls events, forwarding them to ImGui; returns false when the user closes the window.</summary>
-    public static bool PumpEvents(Action<SdlEvent> handler)
+    /// <summary>Polls events, forwarding them to ImGui and then to the handler.</summary>
+    public static void PumpEvents(Action<SdlEvent> handler)
     {
         SdlEvent e;
-        var running = true;
         while (SDL.PollEvent(&e))
         {
             ImGuiImplSDL3.ProcessEvent((ImGuiSdlEvent*)&e);
-            if ((SDLEventType)e.Type == SDLEventType.Quit)
-                running = false;
             handler(e);
         }
-
-        return running;
     }
 
     public void BeginFrame()

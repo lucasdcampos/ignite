@@ -91,6 +91,12 @@ technical options stay behind "Customize" and "Advanced".
     words (`StreamEndMessages`).
 - `Ui/StreamOverlay` draws over the video: the connecting screen, a short "Press F1" hint, the
   F1 menu (statistics, disconnect) and the console passcode prompt.
+- Every way a stream ends leads back to the launcher: closing the window while connecting or
+  streaming ends the stream instead of quitting (SDL's quit-on-last-window-close is turned
+  off; closing the window from the launcher quits), and a stream that ends by itself (console
+  disconnect, 5 s of silence, see [stream connection](protocol/09-stream-connection.md#detecting-a-lost-connection))
+  releases its session immediately. The home screen then explains why, except when the user
+  ended the stream.
 - `Ui/Widgets` builds the controls (buttons, cards, toggles, option cards, steps, banners) on
   top of Dear ImGui items, so keyboard and gamepad navigation keep working; custom-drawn items
   draw their own focus ring. Escape or the gamepad's Circle button goes back from secondary

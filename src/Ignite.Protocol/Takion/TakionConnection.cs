@@ -44,6 +44,8 @@ public sealed class TakionConnection : IAsyncDisposable
     private uint _nextLocalSequence;
     private uint _nextRemoteSequence;
     private long _gapSince;
+    private long _lastReceived;
+    private int _closeReported;
     private Task? _receiveLoop;
     private Task? _retransmitLoop;
 
@@ -98,6 +100,13 @@ public sealed class TakionConnection : IAsyncDisposable
             throw;
         }
     }
+
+    /// <summary>
+    /// When set, the connection is reported closed with a <see cref="TimeoutException"/> once
+    /// nothing has been received for this long. UDP gives no error when the console or the
+    /// network disappears, so silence is the only sign of a lost connection.
+    /// </summary>
+    public TimeSpan? SilenceTimeout { get; set; }
 
     /// <summary>Enables authentication and encryption, then processes packets that arrived early.</summary>
     public void SetCrypt(GkCrypt local, GkCrypt remote)
@@ -240,6 +249,7 @@ public sealed class TakionConnection : IAsyncDisposable
 
     private void Start()
     {
+        Volatile.Write(ref _lastReceived, Environment.TickCount64);
         _receiveLoop = Task.Factory.StartNew(ReceiveLoop, TaskCreationOptions.LongRunning);
         _retransmitLoop = Task.Run(() => RetransmitLoopAsync(_stop.Token));
     }
@@ -263,7 +273,10 @@ public sealed class TakionConnection : IAsyncDisposable
                 }
 
                 if (received > 0)
+                {
+                    Volatile.Write(ref _lastReceived, Environment.TickCount64);
                     HandleDatagram(buffer.AsSpan(0, received));
+                }
             }
         }
         catch (Exception e) when (e is ObjectDisposedException or SocketException && _stop.IsCancellationRequested)
@@ -274,7 +287,23 @@ public sealed class TakionConnection : IAsyncDisposable
             error = e;
         }
 
-        _handler.OnClosed(error);
+        ReportClosed(error);
+    }
+
+    /// <summary>Notifies the handler once, whichever of the receive loop or the silence check ends first.</summary>
+    private void ReportClosed(Exception? error)
+    {
+        if (Interlocked.Exchange(ref _closeReported, 1) == 0)
+            _handler.OnClosed(error);
+    }
+
+    private void CheckSilence()
+    {
+        if (SilenceTimeout is not { } timeout)
+            return;
+        var silentMs = Environment.TickCount64 - Volatile.Read(ref _lastReceived);
+        if (silentMs >= timeout.TotalMilliseconds)
+            ReportClosed(new TimeoutException($"Nothing received from the console for {silentMs / 1000.0:0.#} s."));
     }
 
     private void HandleDatagram(Span<byte> datagram)
@@ -425,6 +454,7 @@ public sealed class TakionConnection : IAsyncDisposable
         using var timer = new PeriodicTimer(RetransmitInterval);
         while (await timer.WaitForNextTickAsync(cancellationToken))
         {
+            CheckSilence();
             List<byte[]> resend = [];
             lock (_sendBufferLock)
             {
