@@ -127,8 +127,8 @@ internal sealed class Shell : IDisposable
         drawList.AddLine(origin + new Vector2(0, height), origin + new Vector2(width, height), Theme.U32(Theme.WithAlpha(Theme.Border, 0.6f)));
 
         var middle = height / 2;
-        ImGui.SetCursorPos(new Vector2(Theme.Dp(28), middle - Theme.Dp(15)));
-        Widgets.Text(Icons.Flame, 26, Theme.Accent);
+        ImGui.SetCursorPos(new Vector2(Theme.Dp(28), middle - Theme.Dp(18)));
+        Logo.Draw(36);
         ImGui.SameLine(0, Theme.Dp(10));
         ImGui.SetCursorPosY(middle - Theme.Dp(14));
         Widgets.Text("Ignite", 22, bold: true);

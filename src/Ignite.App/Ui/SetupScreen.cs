@@ -51,9 +51,8 @@ internal sealed class SetupScreen
 
     private void DrawWelcome()
     {
-        Widgets.Space(20);
-        Widgets.Centered(Icons.Flame, Theme.HeroSize, Theme.Accent);
-        Widgets.Space(8);
+        Logo.Draw(150, centered: true);
+        Widgets.Space(4);
         Widgets.Centered("Welcome to Ignite", Theme.TitleSize + 4, bold: true);
         Widgets.Centered("Play your PS5 on this computer, over your home network.", Theme.HeadingSize - 2, Theme.TextMuted);
         Widgets.Space(28);

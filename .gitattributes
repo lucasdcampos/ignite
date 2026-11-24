@@ -4,3 +4,4 @@
 *.dll binary
 *.so binary
 *.ttf binary
+*.ico binary

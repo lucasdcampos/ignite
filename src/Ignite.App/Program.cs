@@ -19,6 +19,7 @@ internal static class Program
         using var host = new SdlHost("Ignite", 1280, 800);
         Theme.LoadFonts(ImGui.GetIO());
         Theme.Apply(host.ContentScale);
+        Logo.Load(host.Renderer);
         var services = new AppServices(AppPaths.Default());
         services.Browser.Start();
         using var presenter = new VideoPresenter(host.Renderer, host.D3D11Device);

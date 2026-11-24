@@ -1,4 +1,8 @@
-# Ignite
+<p align="center">
+  <img src="assets/logo-no-bg.png" alt="Ignite logo: a flame over a game controller" width="180">
+</p>
+
+<h1 align="center">Ignite</h1>
 
 Ignite is an open source PlayStation 5 Remote Play client for Windows and Linux, written in
 C# / .NET.

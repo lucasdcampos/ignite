@@ -55,6 +55,7 @@ Never report a task as complete if a test fails or a step was skipped. Say what 
 ## Repository layout
 
 ```
+assets/               Source artwork (logo); the app icons in src/Ignite.App/Assets/Icons are made from it
 docs/                 Protocol and project documentation
 src/                  Production projects (see docs/architecture.md)
 tests/                Test projects, one per production project

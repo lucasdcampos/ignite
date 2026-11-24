@@ -112,6 +112,15 @@ technical options stay behind "Customize" and "Advanced".
   density) and updated when the window moves to a display with another scale. Text uses Inter
   with Lucide icons merged into each weight; Inter's own private-use glyphs are excluded so they
   do not hide the icons. Dear ImGui 1.92 rasterizes glyphs on demand at any size.
+- Icons: `assets/logo.png` is the source artwork. `src/Ignite.App/Assets/Icons` holds a square,
+  rounded crop of it (tighter at 16-32 px so the mark stays legible): `ignite.ico` is the
+  executable icon on Windows (`ApplicationIcon`), and the embedded `ignite-*.png` images become the
+  window icon through `SDL_SetWindowIcon` on every platform (32 px base with 48-256 px
+  alternates for high-DPI). Inside the app (top bar, welcome screen) `Ui/Logo` draws the
+  transparent logo from `Assets/Images/logo-{64,128,256,512}.png`, picking the smallest texture
+  at least as tall as the target because SDL_Renderer textures have no mipmaps. The README
+  shows `assets/logo-no-bg.png`, the transparent source those images are made from (trimmed,
+  without the faint haze left by its background removal).
 - PSN sign-in ends on a redirect page the app cannot intercept: the user copies its address
   and the app picks it up from the clipboard (or a "Paste address" button).
 

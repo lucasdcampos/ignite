@@ -11,7 +11,6 @@ internal static class Icons
     public const string Clipboard = "\ue3e8";
     public const string EllipsisVertical = "\ue0b7";
     public const string ExternalLink = "\ue0b9";
-    public const string Flame = "\ue0d2";
     public const string Gamepad = "\ue0df";
     public const string Gauge = "\ue1bf";
     public const string Gem = "\ue242";

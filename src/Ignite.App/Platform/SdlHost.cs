@@ -33,6 +33,12 @@ internal sealed unsafe class SdlHost : IDisposable
         if (Window.IsNull)
             throw new InvalidOperationException($"Could not create the window: {LastError}");
         SDL.SetWindowMinimumSize(Window, (int)(MinimumWidth * scale), (int)(MinimumHeight * scale));
+        var icon = WindowIcon.Load();
+        if (!icon.IsNull)
+        {
+            SDL.SetWindowIcon(Window, icon);
+            SDL.DestroySurface(icon);
+        }
 
         // Direct3D 11 lets the decoder share the renderer's device and keep frames on the GPU.
         if (OperatingSystem.IsWindows())
