@@ -26,6 +26,7 @@ internal sealed class MainView : IDisposable
 
     private string _redirectUrl = "";
     private bool _awaitingRedirect;
+    private bool _openRegisterPopup;
     private long _lastClipboardCheck;
     private string? _ignoredClipboard;
     private string _manualAccountId = "";
@@ -226,7 +227,7 @@ internal sealed class MainView : IDisposable
             {
                 _registering = entry;
                 _pin = "";
-                ImGui.OpenPopup("Register console");
+                _openRegisterPopup = true;
             }
 
             return;
@@ -248,6 +249,14 @@ internal sealed class MainView : IDisposable
 
     private void DrawRegisterPopup()
     {
+        // Opened here rather than from the table row: popup ids depend on the id stack, and the
+        // row pushes the console id.
+        if (_openRegisterPopup)
+        {
+            ImGui.OpenPopup("Register console");
+            _openRegisterPopup = false;
+        }
+
         if (!ImGui.BeginPopupModal("Register console", ImGuiWindowFlags.AlwaysAutoResize))
             return;
 
