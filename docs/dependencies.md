@@ -37,6 +37,14 @@ The public OAuth client id/secret of the official Remote Play app are built in
 | Inter (font) | 4.1, `Inter-Regular.ttf` and `Inter-SemiBold.ttf` from the release archive | UI text | SIL OFL 1.1 | Embedded in `Ignite.App` (`Assets/Fonts`), unmodified. The license is shipped next to the executable as `licenses/Inter-LICENSE.txt`, as the OFL requires. |
 | Lucide (icon font) | 0.554.0, `lucide.ttf` from the `lucide-static` package | UI icons | ISC (parts from Feather: MIT) | Embedded in `Ignite.App` as `Assets/Fonts/Lucide.ttf`; license shipped as `licenses/Lucide-LICENSE.txt`. Codepoints are listed in `Ui/Icons.cs`; take new ones from the same version's `lucide.css`. |
 
+## Using a system FFmpeg
+
+Building with `-p:IgniteBundleFfmpeg=false` skips the bundled FFmpeg. The FFmpeg folder set in
+Settings > Advanced is used when given; otherwise Ignite searches `IGNITE_FFMPEG_PATH`, the
+application directory, the usual install locations (winget, scoop, chocolatey, MSYS2,
+`/usr/lib`...) and the `PATH`. Only libavcodec 63 (FFmpeg 9) is accepted. Media tests are
+skipped when no FFmpeg is found.
+
 ## Rules
 
 - Prefer MIT, BSD, Apache-2.0, zlib or MPL-2.0 dependencies. Fonts may also use the SIL Open
