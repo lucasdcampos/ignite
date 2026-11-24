@@ -26,7 +26,7 @@ they are supplied through configuration.
 | Google.Protobuf | 3.36.2 | Protobuf runtime | BSD-3-Clause | |
 | Grpc.Tools (build only) | 2.85.0 | `.proto` code generation | Apache-2.0 | Not redistributed |
 | FFmpeg.AutoGen | 9.0.1.1 | FFmpeg bindings | LGPL-3.0 | Used unmodified as a separate assembly; ship it replaceable with its license |
-| FFmpeg shared libraries (native) | 9.x (avcodec-63) | Video decoding | LGPL-2.1+ / GPL depending on the build | Distribute an LGPL build (no `--enable-gpl`/`--enable-nonfree`) with its license and source offer. Development builds may be GPL. Located through `IGNITE_FFMPEG_PATH` or the application directory. |
+| FFmpeg shared libraries (native) | 9.0.2 (avcodec-63), BtbN `lgpl-shared` build | Video decoding | LGPL-2.1+ | Downloaded by `build/Ffmpeg.targets` from a pinned BtbN/FFmpeg-Builds release, verified by SHA-256 and copied next to the executable with `ffmpeg-LICENSE.txt`. The libraries stay dynamically linked and replaceable. When updating, change the release, build name and both hashes together; the libavcodec major version must match FFmpeg.AutoGen. |
 | Concentus | 2.2.3 | Opus decoding (managed) | BSD-3-Clause | |
 | xUnit, Microsoft.NET.Test.Sdk, coverlet | see `Directory.Packages.props` | Tests | Apache-2.0 / MIT | Test only |
 

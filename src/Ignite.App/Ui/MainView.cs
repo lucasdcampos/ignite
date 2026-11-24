@@ -259,7 +259,7 @@ internal sealed class MainView : IDisposable
         changed |= ImGui.Checkbox("VSync", ref vsync);
         changed |= ImGui.Checkbox("Fullscreen while streaming (F11)", ref fullscreen);
         changed |= ImGui.SliderFloat("Max reported packet loss (%)", ref maxLoss, 0, 20, "%.0f");
-        changed |= ImGui.InputText("FFmpeg path (restart required)", ref ffmpegPath, 512);
+        changed |= ImGui.InputText("FFmpeg path (optional, restart required)", ref ffmpegPath, 512);
         ImGui.TextDisabled($"Effective bitrate: {new StreamQuality((Resolution)resolution, FpsValues[Math.Max(0, fps)], (VideoCodec)(codec + 1), bitrate > 0 ? bitrate : null).EffectiveBitrateKbps} kbps"
             + (_services.FfmpegVersion is null ? "" : $"  |  FFmpeg {_services.FfmpegVersion}"));
 

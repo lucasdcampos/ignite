@@ -1,0 +1,119 @@
+<Project>
+  <!--
+    Downloads a pinned LGPL shared build of FFmpeg 9 (BtbN/FFmpeg-Builds) once per machine and
+    copies its libraries next to the build and publish output. Set IgniteBundleFfmpeg=false to
+    use a system FFmpeg instead (see docs/dependencies.md).
+  -->
+  <PropertyGroup>
+    <IgniteBundleFfmpeg Condition="'$(IgniteBundleFfmpeg)' == ''">true</IgniteBundleFfmpeg>
+    <IgniteFfmpegRelease>autobuild-2026-11-23-12-43</IgniteFfmpegRelease>
+    <IgniteFfmpegBuild>ffmpeg-n9.0.2-62-gac1c6e003f</IgniteFfmpegBuild>
+
+    <IgniteFfmpegPlatform Condition="$(RuntimeIdentifier.StartsWith('win-x64'))">win64</IgniteFfmpegPlatform>
+    <IgniteFfmpegPlatform Condition="$(RuntimeIdentifier.StartsWith('linux-x64'))">linux64</IgniteFfmpegPlatform>
+    <IgniteFfmpegPlatform Condition="'$(IgniteFfmpegPlatform)' == '' and '$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win64</IgniteFfmpegPlatform>
+    <IgniteFfmpegPlatform Condition="'$(IgniteFfmpegPlatform)' == '' and '$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux64</IgniteFfmpegPlatform>
+
+    <IgniteFfmpegExtension Condition="'$(IgniteFfmpegPlatform)' == 'win64'">zip</IgniteFfmpegExtension>
+    <IgniteFfmpegExtension Condition="'$(IgniteFfmpegPlatform)' == 'linux64'">tar.xz</IgniteFfmpegExtension>
+    <IgniteFfmpegSha256 Condition="'$(IgniteFfmpegPlatform)' == 'win64'">a5627bcde93a2cfbc603d6348bc6cf27945589e8ce03735bda157070988f430c</IgniteFfmpegSha256>
+    <IgniteFfmpegSha256 Condition="'$(IgniteFfmpegPlatform)' == 'linux64'">1210875a6e6b9365368c9b955cca43ae12472b2d0f74be8e323cab4efe5eb3ca</IgniteFfmpegSha256>
+
+    <IgniteFfmpegName>$(IgniteFfmpegBuild)-$(IgniteFfmpegPlatform)-lgpl-shared-9.0</IgniteFfmpegName>
+    <IgniteFfmpegUrl>https://github.com/BtbN/FFmpeg-Builds/releases/download/$(IgniteFfmpegRelease)/$(IgniteFfmpegName).$(IgniteFfmpegExtension)</IgniteFfmpegUrl>
+    <IgniteFfmpegCache>$([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.LocalApplicationData)), 'Ignite', 'build-cache'))</IgniteFfmpegCache>
+    <IgniteFfmpegRoot>$(IgniteFfmpegCache)/$(IgniteFfmpegName)</IgniteFfmpegRoot>
+    <IgniteFfmpegLibraries Condition="'$(IgniteFfmpegPlatform)' == 'win64'">$(IgniteFfmpegRoot)/bin/*.dll</IgniteFfmpegLibraries>
+    <IgniteFfmpegLibraries Condition="'$(IgniteFfmpegPlatform)' == 'linux64'">$(IgniteFfmpegRoot)/lib/*.so*</IgniteFfmpegLibraries>
+  </PropertyGroup>
+
+  <UsingTask TaskName="IgniteFetchArchive" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Url ParameterType="System.String" Required="true" />
+      <Sha256 ParameterType="System.String" Required="true" />
+      <CacheDirectory ParameterType="System.String" Required="true" />
+      <Name ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Diagnostics" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Using Namespace="System.Net.Http" />
+      <Using Namespace="System.Security.Cryptography" />
+      <Using Namespace="System.Threading" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var root = Path.Combine(CacheDirectory, Name);
+        var marker = Path.Combine(root, ".complete");
+        Directory.CreateDirectory(CacheDirectory);
+
+        // Parallel builds of several projects share the cache; only one may fill it.
+        using (var mutex = new Mutex(false, "IgniteFfmpegFetch"))
+        {
+            try { mutex.WaitOne(); } catch (AbandonedMutexException) { }
+            try
+            {
+                if (!File.Exists(marker))
+                {
+                    var archive = Path.Combine(CacheDirectory, Name + (Url.EndsWith(".zip") ? ".zip" : ".tar.xz"));
+                    Log.LogMessage(MessageImportance.High, "Downloading FFmpeg from " + Url);
+                    using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) })
+                    using (var response = http.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult())
+                    {
+                        response.EnsureSuccessStatusCode();
+                        using (var output = File.Create(archive))
+                            response.Content.CopyToAsync(output).GetAwaiter().GetResult();
+                    }
+
+                    string hash;
+                    using (var stream = File.OpenRead(archive))
+                    using (var sha = SHA256.Create())
+                        hash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+                    if (hash != Sha256.ToLowerInvariant())
+                    {
+                        File.Delete(archive);
+                        Log.LogError("FFmpeg archive hash mismatch: " + hash + ". Build with -p:IgniteBundleFfmpeg=false to use a system FFmpeg.");
+                        return false;
+                    }
+
+                    if (Directory.Exists(root))
+                        Directory.Delete(root, true);
+                    if (archive.EndsWith(".zip"))
+                    {
+                        ZipFile.ExtractToDirectory(archive, CacheDirectory);
+                    }
+                    else
+                    {
+                        var tar = Process.Start(new ProcessStartInfo("tar", "-xJf \"" + archive + "\" -C \"" + CacheDirectory + "\"") { UseShellExecute = false });
+                        tar.WaitForExit();
+                        if (tar.ExitCode != 0)
+                        {
+                            Log.LogError("Extracting the FFmpeg archive failed (tar exit code " + tar.ExitCode + ").");
+                            return false;
+                        }
+                    }
+
+                    File.Delete(archive);
+                    File.WriteAllText(marker, Url);
+                }
+            }
+            finally
+            {
+                mutex.ReleaseMutex();
+            }
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="IgniteFetchFfmpeg"
+          BeforeTargets="AssignTargetPaths"
+          Condition="'$(IgniteBundleFfmpeg)' == 'true' and '$(IgniteFfmpegPlatform)' != ''">
+    <IgniteFetchArchive Url="$(IgniteFfmpegUrl)" Sha256="$(IgniteFfmpegSha256)" CacheDirectory="$(IgniteFfmpegCache)" Name="$(IgniteFfmpegName)" />
+
+    <ItemGroup>
+      <_IgniteFfmpegFile Include="$(IgniteFfmpegLibraries)" />
+      <None Include="@(_IgniteFfmpegFile)" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+      <None Include="$(IgniteFfmpegRoot)/LICENSE.txt" Link="ffmpeg-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" Condition="Exists('$(IgniteFfmpegRoot)/LICENSE.txt')" />
+    </ItemGroup>
+  </Target>
+</Project>

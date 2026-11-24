@@ -24,9 +24,9 @@ Not planned for now: PS4 support, remote play over the internet.
 ## Requirements
 
 - .NET 10 SDK
-- FFmpeg 9 shared libraries (`avcodec-63`, `avutil-61`, ...). Point `IGNITE_FFMPEG_PATH` (or
-  the FFmpeg path in the settings) at the directory containing them, or place them next to
-  the executable. Distribute only LGPL builds of FFmpeg.
+- Internet access on the first build: the build downloads a pinned LGPL build of FFmpeg 9
+  (Windows x64 or Linux x64), verifies its SHA-256, caches it per user and copies it next to
+  the executable. Nothing else needs to be installed.
 
 ## Building and running
 
@@ -36,7 +36,10 @@ dotnet test
 dotnet run --project src/Ignite.App
 ```
 
-Media tests are skipped when FFmpeg is not found.
+To use an FFmpeg 9 installed on the system instead, build with
+`-p:IgniteBundleFfmpeg=false`; Ignite then searches `IGNITE_FFMPEG_PATH`, the application
+directory, the usual install locations (winget, scoop, chocolatey, MSYS2, `/usr/lib`...) and
+the `PATH`. Media tests are skipped when no FFmpeg is found.
 
 PSN sign-in needs the OAuth client of the official app, supplied through
 `IGNITE_PSN_CLIENT_ID` and `IGNITE_PSN_CLIENT_SECRET` (or the settings file). Without it,

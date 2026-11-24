@@ -10,31 +10,15 @@ internal static class FfmpegTestEnvironment
 
     private static bool TryLoad()
     {
-        var candidates = new[]
+        try
         {
-            Environment.GetEnvironmentVariable(FfmpegLibrary.PathEnvironmentVariable),
-            AppContext.BaseDirectory,
-            @"C:\msys64\mingw64\bin",
-            "/usr/lib/x86_64-linux-gnu",
-            "/usr/lib64",
-        };
-
-        foreach (var directory in candidates.Where(d => !string.IsNullOrEmpty(d) && Directory.Exists(d)))
-        {
-            if (!Directory.EnumerateFiles(directory!, "*avcodec*").Any())
-                continue;
-            try
-            {
-                FfmpegLibrary.Load(directory);
-                return true;
-            }
-            catch (Exception e) when (e is DllNotFoundException or NotSupportedException or EntryPointNotFoundException)
-            {
-                return false;
-            }
+            FfmpegLibrary.Load();
+            return true;
         }
-
-        return false;
+        catch (Exception e) when (e is DllNotFoundException or NotSupportedException or EntryPointNotFoundException)
+        {
+            return false;
+        }
     }
 
     private static unsafe int Parse(AVCodecParserContext* parser, AVCodecContext* context, byte* data, int size, List<byte[]> units)

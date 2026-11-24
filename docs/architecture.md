@@ -17,7 +17,7 @@ PS4 consoles, remote play over the internet.
 | Runtime | .NET 10 (LTS) | Current LTS, good `Span`/SIMD support, AOT possible later. |
 | Window, input, audio output | SDL3 (Hexa.NET.SDL3) | One cross-platform layer for windowing, gamepads (DualSense included), audio. Native SDL3 ships with the package for Windows, Linux and macOS. |
 | UI | Dear ImGui (Hexa.NET.ImGui) with the SDL3 platform and SDL_Renderer backends | The UI is simple (account, console list, settings, PIN/passcode prompts). One window and one render loop for both UI and video. |
-| Video decoding | FFmpeg through FFmpeg.AutoGen, D3D11VA on Windows / VAAPI on Linux with software fallback | Only realistic option for H.264/HEVC with hardware decoding on both platforms. |
+| Video decoding | FFmpeg through FFmpeg.AutoGen, D3D11VA on Windows / VAAPI on Linux with software fallback | Only realistic option for H.264/HEVC with hardware decoding on both platforms. The build bundles an LGPL FFmpeg 9 (`build/Ffmpeg.targets`); `FfmpegLibrary` falls back to searching the usual install locations and accepts only libavcodec 63. |
 | Video presentation | SDL_Renderer streaming textures (NV12, IYUV, P010) | Decoded pictures are copied back to system memory and uploaded; the newest picture always wins. Zero-copy (sharing the D3D11/VAAPI surface with the renderer) is a later optimisation. |
 | Audio decoding | Concentus (managed Opus) | No native dependency; the console sends Opus. |
 | Crypto | `System.Security.Cryptography` (AES, HMAC-SHA256, SHA-256, secp256k1 ECDH) plus an own GHASH for the 16-byte-IV GMAC | Avoid native crypto dependencies. |

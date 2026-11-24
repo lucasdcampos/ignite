@@ -25,7 +25,7 @@ internal sealed class AppServices : IAsyncDisposable
         }
         catch (Exception e) when (e is DllNotFoundException or NotSupportedException or EntryPointNotFoundException or InvalidOperationException)
         {
-            StartupProblems.Add($"FFmpeg could not be loaded ({e.Message}). Set the FFmpeg path in the settings or IGNITE_FFMPEG_PATH.");
+            StartupProblems.Add($"FFmpeg could not be loaded: {e.Message} Reinstall Ignite or set the FFmpeg path in the settings.");
         }
 
         Browser.Start();
