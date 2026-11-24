@@ -100,8 +100,11 @@ touchpad click is never seen without its finger.
 
 History packets are unreliable, so the sender repeats recent events:
 
-- Keep the last 16 events. Each new event takes the next history sequence number.
-- Every history packet contains up to the 8 most recent events.
+- Keep the last 16 events. Each new event takes the next history sequence number
+  (starting at 0).
+- Every history packet contains up to the 8 most recent events, and its sequence number is
+  the number of its **newest** event. The console remembers the last number it applied and
+  only applies as many events as the number moved, so repeated packets are harmless.
 - After the newest packet, if nothing new happens, resend the same packet (same sequence
   number) 20, 50, 100 and 200 ms later. Otherwise a lost release would leave a button held
   on the console.
