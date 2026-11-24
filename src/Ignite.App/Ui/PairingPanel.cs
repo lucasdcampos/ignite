@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using Hexa.NET.ImGui;
 using Ignite.Core.Consoles;
 using Ignite.Protocol.Discovery;
@@ -13,10 +14,12 @@ internal sealed class PairingPanel
 
     private readonly AppServices _services;
     private readonly BackgroundJob _job = new();
+    private readonly ManualSearch _manualSearch = new();
     private string? _selectedHostId;
     private string _pin = "";
     private string _manualAddress = "";
     private bool _showManualAddress;
+    private bool _invalidAddress;
     private volatile string? _pairedName;
 
     public PairingPanel(AppServices services) => _services = services;
@@ -52,9 +55,10 @@ internal sealed class PairingPanel
         Widgets.Space(10);
 
         Widgets.Text("Consoles on your network", bold: true);
-        var candidates = _services.Browser.Snapshot().Where(e => !e.Registered && e.Address is not null).ToList();
+        var entries = _services.Browser.Snapshot();
+        var candidates = entries.Where(e => !e.Registered && e.Address is not null).ToList();
         DrawCandidates(candidates);
-        DrawManualAddress();
+        DrawManualAddress(entries);
 
         var selected = candidates.FirstOrDefault(e => e.HostId == _selectedHostId && e.State == ConsoleState.Ready);
         if (selected is not null)
@@ -83,7 +87,7 @@ internal sealed class PairingPanel
         }
     }
 
-    private void DrawManualAddress()
+    private void DrawManualAddress(IReadOnlyList<ConsoleEntry> entries)
     {
         if (Widgets.Button(_showManualAddress ? "Hide" : "Can't find your console?", ButtonKind.Ghost))
             _showManualAddress = !_showManualAddress;
@@ -94,8 +98,45 @@ internal sealed class PairingPanel
         ImGui.SetNextItemWidth(Theme.Dp(220));
         var submitted = ImGui.InputTextWithHint("##address", "192.168.0.10", ref _manualAddress, 64, ImGuiInputTextFlags.EnterReturnsTrue);
         ImGui.SameLine();
-        if ((Widgets.Button($"{Icons.Search}  Search") || submitted) && IPAddress.TryParse(_manualAddress.Trim(), out var address))
-            _services.Browser.AddManualAddress(address);
+        if (Widgets.Button($"{Icons.Search}  Search") || submitted)
+        {
+            _invalidAddress = !IPAddress.TryParse(_manualAddress.Trim(), out var address) || address.AddressFamily != AddressFamily.InterNetwork;
+            if (!_invalidAddress)
+            {
+                _services.Browser.AddManualAddress(address!);
+                _manualSearch.Begin(address!);
+            }
+        }
+
+        if (_invalidAddress)
+            Widgets.Text($"{Icons.CircleAlert}  Enter an IPv4 address such as 192.168.0.10.", Theme.SmallSize, Theme.Warning);
+        else
+            DrawManualSearchStatus(entries);
+    }
+
+    private void DrawManualSearchStatus(IReadOnlyList<ConsoleEntry> entries)
+    {
+        var (state, console) = _manualSearch.Update(entries);
+        var address = _manualSearch.Address;
+        switch (state)
+        {
+            case ManualSearchState.Searching:
+                Widgets.Progress($"Looking for a console at {address}...");
+                break;
+            case ManualSearchState.Found:
+                Widgets.Text($"{Icons.CircleCheck}  Found {console!.Name} at {address}. It is in the list above.", Theme.SmallSize, Theme.Success);
+                break;
+            case ManualSearchState.AlreadyPaired:
+                Widgets.Text($"{Icons.CircleCheck}  {console!.Name} at {address} is already paired. Play on it from the home screen.", Theme.SmallSize, Theme.Success);
+                break;
+            case ManualSearchState.NoAnswer:
+                Widgets.Text($"{Icons.CircleAlert}  No console answered at {address}.", Theme.SmallSize, Theme.Warning);
+                Widgets.Muted(
+                    "Check the address and that the console is on. If a friend shares it, their computer must be sharing it and both computers "
+                    + "must be on the same VPN. Sharing does not work from the computer that shares the console.",
+                    Theme.SmallSize);
+                break;
+        }
     }
 
     private void DrawPin(ConsoleEntry console)

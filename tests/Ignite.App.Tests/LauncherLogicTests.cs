@@ -134,6 +134,33 @@ public sealed class LauncherLogicTests : IDisposable
     }
 
     [Fact]
+    public void ManualSearch_ReportsWhatAnsweredAtTheAddress()
+    {
+        var search = new ManualSearch(_time);
+        var relay = IPAddress.Parse("26.50.127.143");
+        var found = new ConsoleEntry("PS5", "PS5-838", relay, ConsoleState.Ready, false, null, _time.GetUtcNow());
+
+        Assert.Equal(ManualSearchState.Idle, search.Update([]).State);
+        search.Begin(relay);
+        Assert.Equal(ManualSearchState.Searching, search.Update([Entry(ConsoleState.Ready)]).State);
+        Assert.Equal((ManualSearchState.Found, found), search.Update([found]));
+        Assert.Equal(ManualSearchState.AlreadyPaired, search.Update([found with { Registered = true }]).State);
+        Assert.Equal(ManualSearchState.Searching, search.Update([found with { State = ConsoleState.Unknown, Registered = true }]).State);
+    }
+
+    [Fact]
+    public void ManualSearch_GivesUpWhenNothingAnswers()
+    {
+        var search = new ManualSearch(_time);
+        search.Begin(IPAddress.Parse("26.50.127.143"));
+
+        _time.Advance(ManualSearch.Timeout - TimeSpan.FromSeconds(1));
+        Assert.Equal(ManualSearchState.Searching, search.Update([]).State);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(ManualSearchState.NoAnswer, search.Update([]).State);
+    }
+
+    [Fact]
     public void SharingMessage_TellsTheFriendWhichAddressToEnter()
     {
         var message = HomeScreen.SharingMessage("Living Room", [IPAddress.Parse("26.50.127.143"), IPAddress.Parse("100.109.163.35")], 1);

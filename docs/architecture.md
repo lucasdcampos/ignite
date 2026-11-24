@@ -96,7 +96,9 @@ technical options stay behind "Customize" and "Advanced".
     friend or stops sharing it. Banners report start-up problems, why the last stream ended,
     unpaired consoles found on the network and, while a console is shared, the addresses to
     give the friend and how many computers are connected.
-  - **Pair**: sign in when needed, pick a discovered console, type the PIN.
+  - **Pair**: sign in when needed, pick a discovered console, type the PIN. "Can't find your
+    console?" searches a typed address and says what happened: still looking, found, already
+    paired, or nothing answered within 6 s (with hints about the address, the VPN and sharing).
   - **Settings**: quality presets (Performance 720p/H.264/10 Mbps, Balanced 1080p/HEVC/15 Mbps,
     Quality 1080p/HEVC/30 Mbps, all 60 fps) with custom values (360p to 1080p, since the console
     rejects higher resolutions), display toggles, account, consoles, keyboard controls and
@@ -154,7 +156,8 @@ the console.
 - `TcpRelay` opens one console connection per accepted client and copies bytes both ways,
   passing half-closes on, until both sides have closed.
 - `RelayClientFilter` serves only clients outside the console's network that are not this
-  computer. Relaying discovery broadcasts from the home network, or this computer's own
+  computer, so sharing cannot be tried with a second Ignite on the sharing computer (it would
+  also share the same data folder and see the console as already paired). Relaying discovery broadcasts from the home network, or this computer's own
   searches on its VPN interface, would make the console appear at two addresses. The
   addresses shown to the user are this computer's IPv4 addresses outside the console's
   network, without link-local and host-only adapters (Hyper-V/WSL, Docker), which another
