@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ignite.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ignite.Protocol/Ignite.Protocol.csproj" />
+    <ProjectReference Include="../Ignite.Psn/Ignite.Psn.csproj" />
+    <ProjectReference Include="../Ignite.Media/Ignite.Media.csproj" />
+  </ItemGroup>
+
+</Project>
