@@ -39,6 +39,8 @@ internal sealed class AppServices : IAsyncDisposable
 
     public ConsoleBrowser Browser { get; }
 
+    public ConsoleSharing Sharing { get; } = new();
+
     public RpCryptTables Tables { get; } = RpCryptTables.Default;
 
     public string? FfmpegVersion { get; }
@@ -53,5 +55,9 @@ internal sealed class AppServices : IAsyncDisposable
     /// </summary>
     public bool NeedsSetup => !Settings.Current.SetupCompleted && (Account.AccountId is null || Consoles.Consoles.Count == 0);
 
-    public ValueTask DisposeAsync() => Browser.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        Sharing.Dispose();
+        return Browser.DisposeAsync();
+    }
 }

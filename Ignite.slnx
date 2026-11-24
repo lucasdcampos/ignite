@@ -5,6 +5,7 @@
     <Project Path="src/Ignite.Media/Ignite.Media.csproj" />
     <Project Path="src/Ignite.Protocol/Ignite.Protocol.csproj" />
     <Project Path="src/Ignite.Psn/Ignite.Psn.csproj" />
+    <Project Path="src/Ignite.Relay/Ignite.Relay.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Ignite.App.Tests/Ignite.App.Tests.csproj" />
@@ -12,5 +13,6 @@
     <Project Path="tests/Ignite.Media.Tests/Ignite.Media.Tests.csproj" />
     <Project Path="tests/Ignite.Protocol.Tests/Ignite.Protocol.Tests.csproj" />
     <Project Path="tests/Ignite.Psn.Tests/Ignite.Psn.Tests.csproj" />
+    <Project Path="tests/Ignite.Relay.Tests/Ignite.Relay.Tests.csproj" />
   </Folder>
 </Solution>

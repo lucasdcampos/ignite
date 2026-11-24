@@ -133,6 +133,24 @@ public sealed class LauncherLogicTests : IDisposable
         Assert.Equal(QualityPreset.Balanced, QualityPresets.Match(reloaded.Settings.Current.Quality));
     }
 
+    [Fact]
+    public void SharingMessage_TellsTheFriendWhichAddressToEnter()
+    {
+        var message = HomeScreen.SharingMessage("Living Room", [IPAddress.Parse("26.50.127.143"), IPAddress.Parse("100.109.163.35")], 1);
+
+        Assert.Contains("\n26.50.127.143  or  100.109.163.35\n", message);
+        Assert.StartsWith("Sharing Living Room. 1 computer is connected.\n", message);
+    }
+
+    [Fact]
+    public void SharingMessage_AsksForAVpnWhenThisComputerIsOnlyOnTheHomeNetwork()
+    {
+        var message = HomeScreen.SharingMessage("Living Room", [], 0);
+
+        Assert.Contains("VPN", message);
+        Assert.EndsWith("No one is connected yet.", message);
+    }
+
     private ConsoleEntry Entry(ConsoleState state) =>
         new("PS5", "Living Room", IPAddress.Loopback, state, true, null, _time.GetUtcNow());
 

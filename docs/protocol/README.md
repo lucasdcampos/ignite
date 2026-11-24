@@ -41,6 +41,11 @@ disagrees with this document, the console is right and the document must be fixe
 | 9297 | UDP | Senkusha network probe (Takion) |
 | 9303–9319 | UDP | Local port range the client binds for discovery (falls back to any port) |
 
+The client starts every exchange and the console answers the address and port the request
+came from; the console never opens a connection to the client. This is what lets a relay on
+the console's network forward the ports unchanged
+([console sharing](../architecture.md#console-sharing)).
+
 ## Documents
 
 1. [Discovery and wake-up](01-discovery.md)

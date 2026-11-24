@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ignite.Relay.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ignite.Protocol/Ignite.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

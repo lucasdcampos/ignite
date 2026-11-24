@@ -1,3 +1,4 @@
+using System.Net;
 using System.Numerics;
 using Hexa.NET.ImGui;
 using Ignite.Core.Consoles;
@@ -30,6 +31,7 @@ internal sealed class HomeScreen
     {
         var entries = _services.Browser.Snapshot();
         UpdateWake(entries);
+        _services.Sharing.Follow(entries);
 
         Widgets.BeginColumn("home", 1120);
         Widgets.Space(24);
@@ -57,10 +59,42 @@ internal sealed class HomeScreen
             _notice = null;
         if (_wakeJob.Error is { } error && Widgets.Banner("wake-error", Icons.CircleAlert, $"Could not wake the console: {error}", Theme.Danger, "Dismiss"))
             _wakeJob.ClearError();
+        DrawSharingBanners(entries);
 
         var found = entries.FirstOrDefault(e => !e.Registered && e.State == ConsoleState.Ready);
         if (found is not null && Widgets.Banner("found", Icons.Sparkles, $"New PS5 found on your network: {found.Name}", Theme.Accent, "Pair"))
             PairRequested?.Invoke();
+    }
+
+    private void DrawSharingBanners(IReadOnlyList<ConsoleEntry> entries)
+    {
+        var sharing = _services.Sharing;
+        if (sharing.Error is { } error && Widgets.Banner("share-error", Icons.CircleAlert, $"Could not share the console: {error}", Theme.Danger, "Dismiss"))
+            sharing.ClearError();
+        if (sharing.HostId is not { } hostId)
+            return;
+
+        var name = entries.FirstOrDefault(e => e.HostId == hostId)?.Name ?? hostId;
+        if (Widgets.Banner("sharing", Icons.Share, SharingMessage(name, sharing.ShareAddresses, sharing.ClientCount), Theme.Accent, "Stop sharing"))
+            sharing.Stop();
+    }
+
+    internal static string SharingMessage(string name, IReadOnlyList<IPAddress> addresses, int clients)
+    {
+        var connected = clients switch
+        {
+            0 => "No one is connected yet.",
+            1 => "1 computer is connected.",
+            _ => $"{clients} computers are connected.",
+        };
+        if (addresses.Count == 0)
+            return $"Sharing {name}, but this computer is only on your home network. Connect it and your friend's computer to the same VPN (for example Radmin VPN, Tailscale or ZeroTier). {connected}";
+
+        // Addresses get a line of their own because text wrapping may break them at a dot.
+        return $"Sharing {name}. {connected}\n"
+            + "On your friend's computer, choose \"Can't find your console?\" when pairing in Ignite and enter:\n"
+            + string.Join("  or  ", addresses) + "\n"
+            + "Then open Pair Device on the PS5 and tell them the code.";
     }
 
     private void DrawEmptyState()
@@ -148,6 +182,17 @@ internal sealed class HomeScreen
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.Dp(8, 8));
         if (ImGui.BeginPopup("console-menu"))
         {
+            var sharing = _services.Sharing;
+            if (sharing.HostId == entry.HostId)
+            {
+                if (ImGui.Selectable($"{Icons.Share}  Stop sharing"))
+                    sharing.Stop();
+            }
+            else if (ImGui.Selectable($"{Icons.Share}  Share with a friend", false, entry.Address is null ? ImGuiSelectableFlags.Disabled : ImGuiSelectableFlags.None))
+            {
+                sharing.Share(entry);
+            }
+
             if (ImGui.Selectable($"{Icons.Trash}  Forget this console"))
                 _forget.Request(entry.HostId, entry.Name);
             ImGui.EndPopup();

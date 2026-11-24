@@ -12,6 +12,7 @@
     <ProjectReference Include="../Ignite.Protocol/Ignite.Protocol.csproj" />
     <ProjectReference Include="../Ignite.Psn/Ignite.Psn.csproj" />
     <ProjectReference Include="../Ignite.Media/Ignite.Media.csproj" />
+    <ProjectReference Include="../Ignite.Relay/Ignite.Relay.csproj" />
   </ItemGroup>
 
 </Project>

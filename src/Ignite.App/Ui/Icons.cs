@@ -21,6 +21,7 @@ internal static class Icons
     public const string Power = "\ue140";
     public const string Search = "\ue151";
     public const string Settings = "\ue154";
+    public const string Share = "";
     public const string Sliders = "\ue29a";
     public const string Sparkles = "\ue412";
     public const string Trash = "\ue18e";

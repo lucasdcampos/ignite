@@ -8,7 +8,9 @@ Ignite is a cross-platform (Windows and Linux first) PlayStation 5 Remote Play c
 C# / .NET. The scope is deliberately small: sign in, add a PS5, play. It should feel like the
 official Remote Play app, but with more control over resolution, frame rate, codec and bitrate.
 
-Out of scope unless explicitly requested: PS4 support and remote play over the internet.
+Out of scope unless explicitly requested: PS4 support and remote play over the internet through
+Sony's servers. Playing from another network is covered only by console sharing (a relay on the
+console's network, see `docs/architecture.md`).
 Do not add features beyond this scope without asking.
 
 ## The protocol documentation is the source of truth

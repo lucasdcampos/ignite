@@ -8,7 +8,9 @@
 
 ## Non-goals (for now)
 
-PS4 consoles, remote play over the internet.
+PS4 consoles, remote play over the internet through Sony's servers. Playing from another
+network is supported only through [console sharing](#console-sharing), where a computer on
+the console's network relays the traffic.
 
 ## Technology choices
 
@@ -34,18 +36,22 @@ src/
                       Depends on the BCL and Google.Protobuf only.
   Ignite.Psn          PSN OAuth sign-in and account id retrieval (HTTP only).
   Ignite.Media        Video decoding (FFmpeg) and audio decoding (Opus). No windowing.
+  Ignite.Relay        Console relay: listens on the Remote Play ports and forwards them to
+                      a console, so clients on other networks can reach it.
+                      Depends on the BCL and Ignite.Protocol (ports, subnet helpers) only.
   Ignite.Core         Settings and quality presets, registered consoles, PSN account,
-                      console browser (continuous discovery).
+                      console browser (continuous discovery), console sharing.
   Ignite.App          Executable "Ignite": SDL3 window, ImGui UI, video presentation, audio
                       output, gamepad/keyboard input, stream controller.
 tests/
-  Ignite.Protocol.Tests, Ignite.Psn.Tests, Ignite.Media.Tests, Ignite.Core.Tests,
-  Ignite.App.Tests
+  Ignite.Protocol.Tests, Ignite.Psn.Tests, Ignite.Media.Tests, Ignite.Relay.Tests,
+  Ignite.Core.Tests, Ignite.App.Tests
 ```
 
-Dependency direction: `App -> Core -> (Protocol, Psn, Media)`. `Protocol`, `Psn` and `Media`
-do not reference each other. Interfaces that cross boundaries (`IStreamSink`,
-`IVideoReceiverSink`, `IFeedbackTransport`, `ITakionHandler`) are defined by the lower layer.
+Dependency direction: `App -> Core -> (Protocol, Psn, Media, Relay)`, and `Relay -> Protocol`.
+`Protocol`, `Psn` and `Media` do not reference each other. Interfaces that cross boundaries
+(`IStreamSink`, `IVideoReceiverSink`, `IFeedbackTransport`, `ITakionHandler`, `IConsoleRelay`)
+are defined by the lower layer.
 
 ## Threading model
 
@@ -86,8 +92,10 @@ technical options stay behind "Customize" and "Advanced".
   - **Home**: one card per paired console with a single main button: *Play* when the console
     is ready, *Turn on and play* in rest mode (`WakeAndPlay` sends wake-up packets every 10 s
     and launches as soon as discovery reports the console ready, giving up after 60 s), or a
-    disabled *Not available* when it is not found. Banners report start-up problems, why the
-    last stream ended and unpaired consoles found on the network.
+    disabled *Not available* when it is not found. The card's menu shares the console with a
+    friend or stops sharing it. Banners report start-up problems, why the last stream ended,
+    unpaired consoles found on the network and, while a console is shared, the addresses to
+    give the friend and how many computers are connected.
   - **Pair**: sign in when needed, pick a discovered console, type the PIN.
   - **Settings**: quality presets (Performance 720p/H.264/10 Mbps, Balanced 1080p/HEVC/15 Mbps,
     Quality 1080p/HEVC/30 Mbps, all 60 fps) with custom values (360p to 1080p, since the console
@@ -124,12 +132,56 @@ technical options stay behind "Customize" and "Advanced".
 - PSN sign-in ends on a redirect page the app cannot intercept: the user copies its address
   and the app picks it up from the clipboard (or a "Paste address" button).
 
+## Console sharing
+
+Lets a friend on another network play on this user's console without opening router ports.
+Both computers join the same VPN (Radmin VPN, Tailscale, ZeroTier...), and the sharing
+computer, which is on the console's network, relays the Remote Play ports. The friend's
+Ignite adds the sharing computer's VPN address with "Can't find your console?" and from then
+on treats it as the console: pairing, wake-up and streaming all go through it. Nothing is
+decoded or re-encoded; the stream stays encrypted end to end between the friend's Ignite and
+the console.
+
+- `Ignite.Relay/ConsoleRelay` listens on all Remote Play ports (see the
+  [port table](protocol/README.md#connection-overview)) and forwards each to the same port of
+  the console. Every exchange is started by the client and the console answers the address it
+  came from, so no protocol message has to be rewritten.
+- `UdpRelay` gives every client address its own upstream socket, so the console's replies go
+  back to the client that caused them, and drops replies that do not come from the console.
+  A client that sent or received nothing for 30 s is forgotten. On port 9295 every datagram
+  is also sent to the console subnet's broadcast address, because a console in pairing mode
+  answers only broadcast `SRC3` searches ([registration](protocol/04-registration.md)).
+- `TcpRelay` opens one console connection per accepted client and copies bytes both ways,
+  passing half-closes on, until both sides have closed.
+- `RelayClientFilter` serves only clients outside the console's network that are not this
+  computer. Relaying discovery broadcasts from the home network, or this computer's own
+  searches on its VPN interface, would make the console appear at two addresses. The
+  addresses shown to the user are this computer's IPv4 addresses outside the console's
+  network, without link-local and host-only adapters (Hyper-V/WSL, Docker), which another
+  computer can never reach.
+- `Ignite.Core/ConsoleSharing` shares one console at a time (the ports are fixed), restarts
+  the relay when the console's address changes and stops it when the console is forgotten.
+  Sharing is not saved: it ends when Ignite closes.
+- The console sends its large video packets only to the relay, over the home network; the
+  relay sends them on through ordinary sockets, which the operating system can fragment if
+  the VPN's MTU is smaller. The client still reports the fixed MTU described in
+  [senkusha](protocol/10-senkusha.md).
+- Windows Defender Firewall may ask whether Ignite can accept connections. VPN adapters are
+  often classified as public networks, so access must be allowed there too.
+
+Verified against a PS5 through the relay, from a client on another subnet: discovery is
+answered with the console's normal status, and a TCP 9295 session request gets the same
+answer as when sent directly. Not yet verified on a console: pairing, a full stream and
+whether the console minds the relay's address in the `Host` header of authenticated requests.
+
 ## Testing approach
 
 - Protocol code is tested with known-answer vectors produced by a reference implementation
   (inputs chosen by us, only the outputs are kept) and with in-process fake consoles that
   play the console side of each exchange over loopback sockets.
 - Media tests decode small H.264/HEVC clips generated with FFmpeg (`tests/Ignite.Media.Tests/Fixtures`).
+- Relay tests forward real datagrams and TCP connections between loopback sockets that play
+  the client and the console.
 - App tests check DualSense effects against byte vectors, capture SDL effect submission and
   resets with a virtual gamepad, and exercise native SDL resampling to verify channel
   routing, sample counts, continuity and the haptics queue's latency bound without hardware.

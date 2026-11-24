@@ -4,6 +4,7 @@ using Ignite.App.Ui;
 using Ignite.Core.Consoles;
 using Ignite.Core.Storage;
 using Ignite.Protocol;
+using Ignite.Protocol.Discovery;
 
 namespace Ignite.App.Tests;
 
@@ -56,6 +57,10 @@ public sealed unsafe class LauncherRenderTests : IDisposable
         Assert.Equal(Page.Home, shell.Page);
         var drawn = Render(() => shell.Draw(null));
         Assert.True(drawn > 0);
+
+        _services.Sharing.Share(new ConsoleEntry("PS5", "Living Room", null, ConsoleState.Unknown, true, null, DateTimeOffset.MinValue));
+        Assert.NotNull(_services.Sharing.Error);
+        Render(() => shell.Draw(null));
     }
 
     [Fact]
