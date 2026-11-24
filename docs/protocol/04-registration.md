@@ -11,6 +11,8 @@ The client needs: console address, PSN account id (8 bytes) and the PIN.
 2. Send the 5 bytes `SRC3\0`.
 3. Wait up to 3 s for a datagram that starts with `RES3`. Its sender is the console.
    An ICMP "port unreachable" (connection refused) means Remote Play is not listening.
+   Observed on a real PS5: with the pairing screen closed, `SRC3` gets no answer at all, so
+   a timeout usually means the user has not opened *Pair Device* yet.
 4. Wait about 100 ms before the next step; the console does not accept the TCP request
    immediately.
 

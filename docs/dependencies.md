@@ -30,8 +30,10 @@ they are supplied through configuration.
 | Concentus | 2.2.3 | Opus decoding (managed) | BSD-3-Clause | |
 | xUnit, Microsoft.NET.Test.Sdk, coverlet | see `Directory.Packages.props` | Tests | Apache-2.0 / MIT | Test only |
 
-Planned (recorded here when added): SDL3 bindings and native SDL3 (zlib), Dear ImGui
-bindings (MIT).
+| Hexa.NET.SDL3 | 1.2.17 | SDL3 bindings and native SDL3 binaries | MIT (bindings), zlib (SDL3) | |
+| Hexa.NET.ImGui | 2.2.9 | Dear ImGui bindings and native cimgui | MIT | |
+| Hexa.NET.ImGui.Backends, .Backends.SDL3 | 1.0.18 | ImGui SDL3 platform and SDL_Renderer backends | MIT | |
+| System.Security.Cryptography.ProtectedData | 10.0.0 | DPAPI for stored secrets on Windows | MIT | |
 
 ## Rules
 

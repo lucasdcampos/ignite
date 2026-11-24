@@ -25,6 +25,11 @@ ignores PS4).
 Send periodically (for example once per second) to the broadcast address of each interface
 and/or to known console addresses.
 
+Observed on Windows: a `SRCH` sent only to the limited broadcast address `255.255.255.255`
+may leave through a single interface and never reach the console. Ignite also sends it to the
+directed broadcast address of every IPv4 interface (address OR NOT mask) and to the last
+known address of each registered console; unicast `SRCH` is answered normally.
+
 ## Search response
 
 The console replies with a status line and `key:value` headers:
