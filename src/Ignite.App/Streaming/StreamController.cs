@@ -130,7 +130,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     void IStreamSink.OnStreamInfo(IReadOnlyList<VideoStreamProfile> profiles, AudioFormat audio)
     {
-        _decoder = new VideoDecoder(_codec, _hardwareDecoding ? HardwareAcceleration.Auto : HardwareAcceleration.None);
+        _decoder = new VideoDecoder(_codec, new VideoDecoderOptions(_hardwareDecoding ? HardwareAcceleration.Auto : HardwareAcceleration.None));
         var channels = audio.Channels is >= 1 and <= 8 ? audio.Channels : 2;
         var sampleRate = audio.SampleRate > 0 ? audio.SampleRate : 48000;
         _audioDecoder = new OpusAudioDecoder(sampleRate, channels);
@@ -216,9 +216,9 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
             var decoder = _decoder!;
             if (item.Header is { } header)
-                decoder.Decode([.. header, .. item.Frame], _presenter.Submit);
+                decoder.Decode([.. header, .. item.Frame], _presenter);
             else
-                decoder.Decode(item.Frame, _presenter.Submit);
+                decoder.Decode(item.Frame, _presenter);
         }
     }
 }

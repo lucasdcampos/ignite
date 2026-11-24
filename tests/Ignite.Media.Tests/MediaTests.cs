@@ -13,11 +13,11 @@ public class MediaTests
     {
         var stream = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture));
         var units = FfmpegTestEnvironment.SplitAccessUnits(stream, codec);
-        using var decoder = new VideoDecoder(codec, acceleration);
+        using var decoder = new VideoDecoder(codec, new VideoDecoderOptions(acceleration));
 
         var frames = new List<(int Width, int Height, VideoPixelFormat Format, int Planes, bool Hardware)>();
         foreach (var unit in units)
-            decoder.Decode(unit, f => frames.Add((f.Width, f.Height, f.Format, f.Planes.Count, f.HardwareDecoded)));
+            decoder.Decode(unit, new DelegateSink(f => frames.Add((f.Width, f.Height, f.Format, f.Planes.Count, f.HardwareDecoded))));
 
         Assert.Equal(10, units.Count);
         Assert.InRange(frames.Count, 9, 10);
@@ -35,10 +35,10 @@ public class MediaTests
     [FfmpegFact]
     public void VideoDecoder_IgnoresGarbage()
     {
-        using var decoder = new VideoDecoder(VideoCodecKind.H264, HardwareAcceleration.None);
+        using var decoder = new VideoDecoder(VideoCodecKind.H264, new VideoDecoderOptions(HardwareAcceleration.None));
         var frames = 0;
 
-        decoder.Decode([0, 0, 0, 1, 0xFF, 0xFF, 0x12], _ => frames++);
+        decoder.Decode([0, 0, 0, 1, 0xFF, 0xFF, 0x12], new DelegateSink(_ => frames++));
 
         Assert.Equal(0, frames);
     }

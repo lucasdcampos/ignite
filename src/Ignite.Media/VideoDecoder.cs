@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
 
 namespace Ignite.Media;
@@ -15,12 +16,25 @@ public enum HardwareAcceleration
     None,
 }
 
+/// <param name="SharedD3D11Device">
+/// Native ID3D11Device of the renderer. When set (Windows only), pictures are decoded on that
+/// device and delivered as <see cref="GpuVideoFrame"/>s without leaving GPU memory. The device
+/// must have multithread protection enabled, because decoding runs on another thread.
+/// </param>
+public sealed record VideoDecoderOptions(
+    HardwareAcceleration Acceleration = HardwareAcceleration.Auto,
+    nint SharedD3D11Device = 0);
+
 /// <summary>
 /// Decodes Annex B access units with FFmpeg, preferring hardware decoding (D3D11VA on Windows,
-/// VAAPI on Linux) and copying pictures back to system memory.
+/// VAAPI on Linux). Pictures are either kept on the GPU (shared D3D11 device) or copied back to
+/// system memory.
 /// </summary>
 public sealed unsafe class VideoDecoder : IDisposable
 {
+    // Surfaces the presenter may hold on top of what the decoder needs for references.
+    private const int ExtraHardwareFrames = 4;
+
     private readonly AVCodecContext* _context;
     private readonly AVPacket* _packet;
     private readonly AVFrame* _frame;
@@ -29,8 +43,9 @@ public sealed unsafe class VideoDecoder : IDisposable
     private byte[] _buffer = [];
     private bool _disposed;
 
-    public VideoDecoder(VideoCodecKind codec, HardwareAcceleration acceleration = HardwareAcceleration.Auto)
+    public VideoDecoder(VideoCodecKind codec, VideoDecoderOptions? options = null)
     {
+        options ??= new VideoDecoderOptions();
         FfmpegLibrary.Load();
         var decoder = ffmpeg.avcodec_find_decoder(codec == VideoCodecKind.Hevc ? AVCodecID.AV_CODEC_ID_HEVC : AVCodecID.AV_CODEC_ID_H264);
         if (decoder == null)
@@ -42,8 +57,18 @@ public sealed unsafe class VideoDecoder : IDisposable
         _context->thread_count = 0;
         _context->thread_type = ffmpeg.FF_THREAD_SLICE;
 
-        if (acceleration == HardwareAcceleration.Auto)
-            HardwareDevice = TryAttachHardwareDevice();
+        if (options.Acceleration == HardwareAcceleration.Auto)
+        {
+            if (options.SharedD3D11Device != 0 && OperatingSystem.IsWindows() && TryAttachSharedD3D11Device(options.SharedD3D11Device))
+            {
+                KeepsFramesOnGpu = true;
+                HardwareDevice = "d3d11va";
+            }
+            else
+            {
+                HardwareDevice = TryAttachHardwareDevice();
+            }
+        }
 
         Check(ffmpeg.avcodec_open2(_context, decoder, null), "open decoder");
         _packet = ffmpeg.av_packet_alloc();
@@ -54,8 +79,11 @@ public sealed unsafe class VideoDecoder : IDisposable
     /// <summary>Name of the hardware device type in use, or null for software decoding.</summary>
     public string? HardwareDevice { get; }
 
-    /// <summary>Decodes one access unit and invokes <paramref name="onFrame"/> for each picture produced.</summary>
-    public void Decode(ReadOnlySpan<byte> accessUnit, Action<DecodedVideoFrame> onFrame)
+    /// <summary>True when pictures are delivered as <see cref="GpuVideoFrame"/>s.</summary>
+    public bool KeepsFramesOnGpu { get; }
+
+    /// <summary>Decodes one access unit and hands every picture produced to <paramref name="sink"/>.</summary>
+    public void Decode(ReadOnlySpan<byte> accessUnit, IVideoFrameSink sink)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         fixed (byte* data = accessUnit)
@@ -71,7 +99,7 @@ public sealed unsafe class VideoDecoder : IDisposable
 
         while (ffmpeg.avcodec_receive_frame(_context, _frame) == 0)
         {
-            Emit(onFrame);
+            Emit(sink);
             ffmpeg.av_frame_unref(_frame);
         }
     }
@@ -102,7 +130,49 @@ public sealed unsafe class VideoDecoder : IDisposable
         return ffmpeg.av_hwdevice_get_type_name(type);
     }
 
-    private void Emit(Action<DecodedVideoFrame> onFrame)
+    private bool TryAttachSharedD3D11Device(nint device)
+    {
+        var buffer = ffmpeg.av_hwdevice_ctx_alloc(AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA);
+        if (buffer == null)
+            return false;
+
+        // FFmpeg releases the device when the context is freed, so it gets its own reference.
+        Marshal.AddRef(device);
+        var deviceContext = (AVHWDeviceContext*)buffer->data;
+        ((AVD3D11VADeviceContext*)deviceContext->hwctx)->device = (ID3D11Device*)device;
+        if (ffmpeg.av_hwdevice_ctx_init(buffer) < 0)
+        {
+            ffmpeg.av_buffer_unref(&buffer);
+            return false;
+        }
+
+        _context->hw_device_ctx = buffer;
+        _context->extra_hw_frames = ExtraHardwareFrames;
+        return true;
+    }
+
+    private void Emit(IVideoFrameSink sink)
+    {
+        if (KeepsFramesOnGpu && (AVPixelFormat)_frame->format == AVPixelFormat.AV_PIX_FMT_D3D11 && _frame->hw_frames_ctx != null)
+        {
+            var softwareFormat = ((AVHWFramesContext*)_frame->hw_frames_ctx->data)->sw_format;
+            VideoPixelFormat? format = softwareFormat switch
+            {
+                AVPixelFormat.AV_PIX_FMT_NV12 => VideoPixelFormat.Nv12,
+                AVPixelFormat.AV_PIX_FMT_P010LE => VideoPixelFormat.P010,
+                _ => null,
+            };
+            if (format is not null)
+            {
+                sink.OnGpuFrame(new GpuVideoFrame(ffmpeg.av_frame_clone(_frame), format.Value));
+                return;
+            }
+        }
+
+        EmitCpuFrame(sink);
+    }
+
+    private void EmitCpuFrame(IVideoFrameSink sink)
     {
         var source = _frame;
         var hardware = _frame->hw_frames_ctx != null;
@@ -158,7 +228,7 @@ public sealed unsafe class VideoDecoder : IDisposable
         _output.Height = source->height;
         _output.Format = pixelFormat;
         _output.HardwareDecoded = hardware;
-        onFrame(_output);
+        sink.OnCpuFrame(_output);
     }
 
     private static void Check(int result, string action)

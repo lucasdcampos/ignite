@@ -7,7 +7,7 @@ namespace Ignite.App.Video;
 /// Hands the newest decoded picture from the decoder thread to the render thread and draws it
 /// letterboxed. Older pictures are dropped so presentation never lags behind decoding.
 /// </summary>
-internal sealed unsafe class VideoPresenter : IDisposable
+internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
 {
     private readonly SDLRendererPtr _renderer;
     private readonly Lock _lock = new();
@@ -22,8 +22,10 @@ internal sealed unsafe class VideoPresenter : IDisposable
 
     public (int Width, int Height) VideoSize => (_textureShape.Width, _textureShape.Height);
 
+    public void OnGpuFrame(GpuVideoFrame frame) => frame.Dispose();
+
     /// <summary>Called on the decoder thread; copies the picture.</summary>
-    public void Submit(DecodedVideoFrame frame)
+    public void OnCpuFrame(DecodedVideoFrame frame)
     {
         PendingFrame target;
         lock (_lock)
