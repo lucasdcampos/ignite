@@ -11,9 +11,9 @@ namespace Ignite.App;
 /// <summary>Application-wide services built at start-up.</summary>
 internal sealed class AppServices : IAsyncDisposable
 {
-    public AppServices()
+    public AppServices(AppPaths paths)
     {
-        Paths = AppPaths.Default();
+        Paths = paths;
         Settings = new SettingsStore(Paths);
         Consoles = new ConsoleRegistry(Paths);
         Account = new AccountStore(Paths);
@@ -25,10 +25,8 @@ internal sealed class AppServices : IAsyncDisposable
         }
         catch (Exception e) when (e is DllNotFoundException or NotSupportedException or EntryPointNotFoundException or InvalidOperationException)
         {
-            StartupProblems.Add($"FFmpeg could not be loaded: {e.Message} Reinstall Ignite or set the FFmpeg path in the settings.");
+            StartupProblems.Add($"FFmpeg could not be loaded: {e.Message} Reinstall Ignite or set the FFmpeg folder in Settings > Advanced.");
         }
-
-        Browser.Start();
     }
 
     public AppPaths Paths { get; }
@@ -48,6 +46,12 @@ internal sealed class AppServices : IAsyncDisposable
     public List<string> StartupProblems { get; } = [];
 
     public PsnOAuthOptions PsnOptions => PsnOAuthOptions.Resolve(Settings.Current.PsnClientId, Settings.Current.PsnClientSecret);
+
+    /// <summary>
+    /// True until the first-run setup is finished. Installations that already have an account
+    /// and a paired console (from before the setup existed) do not need it.
+    /// </summary>
+    public bool NeedsSetup => !Settings.Current.SetupCompleted && (Account.AccountId is null || Consoles.Consoles.Count == 0);
 
     public ValueTask DisposeAsync() => Browser.DisposeAsync();
 }

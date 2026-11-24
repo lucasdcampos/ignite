@@ -12,6 +12,9 @@ namespace Ignite.App.Platform;
 /// <summary>Owns the SDL window, renderer and the Dear ImGui context.</summary>
 internal sealed unsafe class SdlHost : IDisposable
 {
+    private const int MinimumWidth = 960;
+    private const int MinimumHeight = 600;
+
     private readonly ImGuiContextPtr _imgui;
     private bool _vsync;
 
@@ -20,9 +23,13 @@ internal sealed unsafe class SdlHost : IDisposable
         if (!SDL.Init(SDL.SDL_INIT_VIDEO | SDL.SDL_INIT_AUDIO | SDL.SDL_INIT_GAMEPAD | SDL.SDL_INIT_EVENTS))
             throw new InvalidOperationException($"SDL initialisation failed: {LastError}");
 
-        Window = SDL.CreateWindow(title, width, height, (ulong)(SDLWindowFlags.Resizable | SDLWindowFlags.HighPixelDensity));
+        var scale = SDL.GetDisplayContentScale(SDL.GetPrimaryDisplay());
+        if (scale <= 0)
+            scale = 1;
+        Window = SDL.CreateWindow(title, (int)(width * scale), (int)(height * scale), (ulong)(SDLWindowFlags.Resizable | SDLWindowFlags.HighPixelDensity));
         if (Window.IsNull)
             throw new InvalidOperationException($"Could not create the window: {LastError}");
+        SDL.SetWindowMinimumSize(Window, (int)(MinimumWidth * scale), (int)(MinimumHeight * scale));
 
         // Direct3D 11 lets the decoder share the renderer's device and keep frames on the GPU.
         if (OperatingSystem.IsWindows())
@@ -39,7 +46,6 @@ internal sealed unsafe class SdlHost : IDisposable
         var io = ImGui.GetIO();
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.NavEnableGamepad;
         io.IniFilename = null;
-        ImGui.StyleColorsDark();
 
         ImGuiImplSDL3.SetCurrentContext(_imgui);
         ImGuiImplSDL3.InitForSDLRenderer((ImGuiSdlWindow*)Window.Handle, (ImGuiSdlRenderer*)Renderer.Handle);
@@ -52,6 +58,20 @@ internal sealed unsafe class SdlHost : IDisposable
 
     /// <summary>The renderer's ID3D11Device, or zero when it does not use Direct3D 11.</summary>
     public nint D3D11Device { get; }
+
+    /// <summary>
+    /// UI scale in window coordinates: the display scale without the part SDL already applies
+    /// as pixel density (macOS and Wayland report coordinates in points).
+    /// </summary>
+    public float ContentScale
+    {
+        get
+        {
+            var density = SDL.GetWindowPixelDensity(Window);
+            var scale = SDL.GetWindowDisplayScale(Window);
+            return density > 0 && scale > 0 ? scale / density : 1;
+        }
+    }
 
     public static string LastError => Marshal.PtrToStringUTF8((nint)SDL.GetError()) ?? "unknown error";
 

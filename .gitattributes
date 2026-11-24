@@ -3,3 +3,4 @@
 *.jpg binary
 *.dll binary
 *.so binary
+*.ttf binary

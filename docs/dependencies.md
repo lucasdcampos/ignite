@@ -34,10 +34,13 @@ The public OAuth client id/secret of the official Remote Play app are built in
 | Hexa.NET.ImGui | 2.2.9 | Dear ImGui bindings and native cimgui | MIT | |
 | Hexa.NET.ImGui.Backends, .Backends.SDL3 | 1.0.18 | ImGui SDL3 platform and SDL_Renderer backends | MIT | |
 | System.Security.Cryptography.ProtectedData | 10.0.0 | DPAPI for stored secrets on Windows | MIT | |
+| Inter (font) | 4.1, `Inter-Regular.ttf` and `Inter-SemiBold.ttf` from the release archive | UI text | SIL OFL 1.1 | Embedded in `Ignite.App` (`Assets/Fonts`), unmodified. The license is shipped next to the executable as `licenses/Inter-LICENSE.txt`, as the OFL requires. |
+| Lucide (icon font) | 0.554.0, `lucide.ttf` from the `lucide-static` package | UI icons | ISC (parts from Feather: MIT) | Embedded in `Ignite.App` as `Assets/Fonts/Lucide.ttf`; license shipped as `licenses/Lucide-LICENSE.txt`. Codepoints are listed in `Ui/Icons.cs`; take new ones from the same version's `lucide.css`. |
 
 ## Rules
 
-- Prefer MIT, BSD, Apache-2.0, zlib or MPL-2.0 dependencies.
+- Prefer MIT, BSD, Apache-2.0, zlib or MPL-2.0 dependencies. Fonts may also use the SIL Open
+  Font License 1.1, which allows bundling with any software as long as the license is shipped.
 - LGPL is acceptable only for native libraries linked dynamically and replaceable by the user.
 - GPL and AGPL dependencies are not allowed.
 - Add a row here in the same change that adds a dependency, and update `THIRD-PARTY-NOTICES.md`

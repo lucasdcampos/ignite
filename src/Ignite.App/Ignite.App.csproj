@@ -23,6 +23,11 @@
     <ProjectReference Include="../Ignite.Core/Ignite.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Assets/Fonts/*.ttf" LogicalName="Ignite.App.Assets.Fonts.%(Filename)%(Extension)" />
+    <None Include="Assets/Fonts/*-LICENSE.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Import Project="../../build/Ffmpeg.targets" />
 
 </Project>

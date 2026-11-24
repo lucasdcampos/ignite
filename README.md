@@ -42,14 +42,18 @@ the `PATH`. Media tests are skipped when no FFmpeg is found.
 
 ## Using
 
-1. Click **Sign in with PSN**, log in with your email and password in the browser, then copy
-   the address of the page you land on (it contains `code=`); Ignite detects it on the
-   clipboard and finishes the sign-in.
-2. Your PS5 appears in the console list. On the console open
-   *Settings > System > Remote Play > Pair Device*, click **Register** and type the PIN.
-3. Click **Wake** if the console is in rest mode, then **Play**.
-4. While streaming: **F1** shows statistics and the disconnect button, **F11** toggles
-   fullscreen.
+The first time Ignite opens, a short setup guides you through three steps:
+
+1. **Sign in** to PlayStation Network in your browser, then copy the address of the page you
+   land on (Ctrl+L, Ctrl+C); Ignite detects it on the clipboard and finishes the sign-in.
+2. **Pair your PS5**: on the console open *Settings > System > Remote Play > Pair Device*,
+   pick it in Ignite and type the 8-digit code shown on the TV.
+3. **Choose the quality**: Performance (720p), Balanced (1080p) or Quality (1440p). Custom
+   resolution, frame rate, codec and bitrate are in Settings.
+
+After that, the home screen shows your consoles. Click **Play** (or **Turn on and play** if
+the console is in rest mode). While streaming, **F1** shows statistics and the disconnect
+button and **F11** toggles fullscreen.
 
 Keyboard fallback: arrows = D-pad, Enter = Cross, Backspace = Circle, Space = Square,
 Tab = Triangle, WASD = left stick, IJKL = right stick, Q/E = L1/R1, 1/3 = L2/R2,

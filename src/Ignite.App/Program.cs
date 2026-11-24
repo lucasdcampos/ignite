@@ -1,4 +1,3 @@
-using System.Numerics;
 using Hexa.NET.ImGui;
 using Hexa.NET.SDL3;
 using Ignite.App.Audio;
@@ -7,6 +6,7 @@ using Ignite.App.Platform;
 using Ignite.App.Streaming;
 using Ignite.App.Ui;
 using Ignite.App.Video;
+using Ignite.Core.Storage;
 
 namespace Ignite.App;
 
@@ -16,17 +16,20 @@ internal static class Program
 
     private static int Main()
     {
-        using var host = new SdlHost("Ignite", 1280, 720);
-        var services = new AppServices();
+        using var host = new SdlHost("Ignite", 1280, 800);
+        Theme.LoadFonts(ImGui.GetIO());
+        Theme.Apply(host.ContentScale);
+        var services = new AppServices(AppPaths.Default());
+        services.Browser.Start();
         using var presenter = new VideoPresenter(host.Renderer, host.D3D11Device);
         using var gamepad = new GamepadInput();
         using var haptics = new HapticsOutput();
-        using var view = new MainView(services);
+        using var shell = new Shell(services);
+        var overlay = new StreamOverlay();
         StreamController? stream = null;
-        var showOverlay = false;
         var fullscreen = false;
 
-        view.PlayRequested += (entry, console) =>
+        shell.PlayRequested += (entry, console) =>
         {
             if (entry.Address is null)
                 return;
@@ -47,6 +50,7 @@ internal static class Program
         while (running)
         {
             frameCount++;
+            var streaming = stream is { State: StreamState.Connecting or StreamState.Streaming, IsStopping: false };
             running = SdlHost.PumpEvents(e =>
             {
                 var type = (SDLEventType)e.Type;
@@ -54,10 +58,12 @@ internal static class Program
                     gamepad.Refresh();
                 if (type is SDLEventType.AudioDeviceAdded or SDLEventType.AudioDeviceRemoved)
                     haptics.Refresh();
+                if (type == SDLEventType.WindowDisplayScaleChanged)
+                    Theme.Apply(host.ContentScale);
                 if (type == SDLEventType.KeyDown && e.Key.Repeat == 0)
                 {
-                    if (e.Key.Scancode == SDLScancode.F1)
-                        showOverlay = !showOverlay;
+                    if (e.Key.Scancode == SDLScancode.F1 && streaming)
+                        overlay.ToggleMenu();
                     if (e.Key.Scancode == SDLScancode.F11)
                         host.SetFullscreen(fullscreen = !fullscreen);
                 }
@@ -66,7 +72,6 @@ internal static class Program
             host.SetVSync(services.Settings.Current.VSync);
             host.BeginFrame();
 
-            var streaming = stream is { State: StreamState.Connecting or StreamState.Streaming, IsStopping: false };
             haptics.SetEnabled(streaming && gamepad.IsUsbDualSense);
             if (!streaming)
             {
@@ -82,14 +87,13 @@ internal static class Program
                     feedback(gamepad);
                 if (!ImGui.GetIO().WantCaptureKeyboard)
                     stream.UpdateInput(gamepad.Read(KeyboardInput.Read()));
-                DrawStreamOverlay(stream, ref showOverlay);
-                view.DrawPasscodePrompt(stream);
+                overlay.Draw(stream);
             }
             else
             {
                 if (fullscreen && stream is not null)
                     host.SetFullscreen(fullscreen = false);
-                view.Draw(stream);
+                shell.Draw(stream);
             }
 
             var capture = screenshotPath is not null && frameCount == ScreenshotFrame;
@@ -104,40 +108,5 @@ internal static class Program
         stream?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         services.DisposeAsync().AsTask().GetAwaiter().GetResult();
         return 0;
-    }
-
-    private static void DrawStreamOverlay(StreamController stream, ref bool showOverlay)
-    {
-        if (stream.State == StreamState.Connecting)
-        {
-            ImGui.SetNextWindowPos(new Vector2(20, 20));
-            ImGui.Begin("connecting", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings);
-            ImGui.Text(stream.Message ?? "Connecting...");
-            if (ImGui.Button("Cancel"))
-                _ = stream.StopAsync();
-            ImGui.End();
-            return;
-        }
-
-        if (!showOverlay)
-            return;
-
-        ImGui.SetNextWindowPos(new Vector2(20, 20));
-        ImGui.SetNextWindowBgAlpha(0.7f);
-        ImGui.Begin("Stream", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings);
-        if (stream.Statistics() is { } stats)
-        {
-            ImGui.Text($"{stats.Width}x{stats.Height}  {stats.Fps:0} fps  {stats.VideoMbps:0.0} Mbps");
-            ImGui.Text($"Decoder: {stats.Decoder}  RTT: {stats.RttMs} ms  FEC recoveries: {stats.FecRecoveries}");
-        }
-
-        ImGui.TextDisabled("F1: toggle this panel   F11: fullscreen");
-        if (ImGui.Button("Disconnect"))
-        {
-            _ = stream.StopAsync();
-            showOverlay = false;
-        }
-
-        ImGui.End();
     }
 }
