@@ -29,6 +29,7 @@ public sealed class TakionConnection : IAsyncDisposable
     private readonly Socket _socket;
     private readonly ITakionHandler _handler;
     private readonly uint _localTag;
+    private readonly bool _encrypted;
     private readonly Lock _cryptLock = new();
     private readonly Lock _sendBufferLock = new();
     private readonly Dictionary<uint, PendingData> _unacknowledged = [];
@@ -46,19 +47,32 @@ public sealed class TakionConnection : IAsyncDisposable
     private Task? _receiveLoop;
     private Task? _retransmitLoop;
 
-    private TakionConnection(Socket socket, ITakionHandler handler)
+    private TakionConnection(Socket socket, ITakionHandler handler, bool encrypted)
     {
         _socket = socket;
         _handler = handler;
+        _encrypted = encrypted;
         _localTag = (uint)RandomNumberGenerator.GetInt32(1, int.MaxValue);
         _nextLocalSequence = _localTag;
     }
 
+    public static Task<TakionConnection> ConnectAsync(
+        IPEndPoint console,
+        ITakionHandler handler,
+        bool dontFragment,
+        CancellationToken cancellationToken = default) =>
+        ConnectAsync(console, handler, dontFragment, encrypted: true, cancellationToken);
+
+    /// <summary>
+    /// Connects without expecting a stream cipher when <paramref name="encrypted"/> is false
+    /// (senkusha): AV packets are then delivered unauthenticated.
+    /// </summary>
     public static async Task<TakionConnection> ConnectAsync(
         IPEndPoint console,
         ITakionHandler handler,
         bool dontFragment,
-        CancellationToken cancellationToken = default)
+        bool encrypted,
+        CancellationToken cancellationToken)
     {
         var socket = new Socket(console.AddressFamily, SocketType.Dgram, ProtocolType.Udp)
         {
@@ -70,7 +84,7 @@ public sealed class TakionConnection : IAsyncDisposable
             if (dontFragment && console.AddressFamily == AddressFamily.InterNetwork)
                 socket.DontFragment = true;
             await socket.ConnectAsync(console, cancellationToken);
-            connection = new TakionConnection(socket, handler);
+            connection = new TakionConnection(socket, handler, encrypted);
             await connection.HandshakeAsync(cancellationToken);
             connection.Start();
             return connection;
@@ -274,7 +288,7 @@ public sealed class TakionConnection : IAsyncDisposable
         {
             if (_remoteCrypt is null)
             {
-                if (type != TakionPacketType.Control)
+                if (type != TakionPacketType.Control && _encrypted)
                 {
                     if (_postponed.Count < PostponedPacketLimit)
                         _postponed.Add(datagram.ToArray());

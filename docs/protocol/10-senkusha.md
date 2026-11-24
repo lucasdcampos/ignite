@@ -68,8 +68,9 @@ Search range 576–1454 bytes, 3 retries per step, per-step timeout = `5 × RTT`
 Size accounting: an IP packet is 28 bytes of IPv4 + UDP headers plus the datagram; the v7
 AV header is 0x12 bytes.
 
-The exact reply semantics of the MTU commands must be confirmed against a real console when
-implementing; update this section with the observed behavior.
+The exact reply semantics of the MTU commands must be confirmed against a real console.
+Ignite currently implements only the RTT test and reports `mtu = 1454` for both directions;
+implement the MTU tests once they can be observed on a console, and update this section.
 
 ## Takion v7 AV header
 
