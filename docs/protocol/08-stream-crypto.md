@@ -15,9 +15,9 @@ integrity.
   signature from `BANG` the same way.
 - Shared secret: the 32-byte X coordinate of the ECDH result (raw secret agreement, no KDF).
 
-.NET note: use `ECDiffieHellman` with secp256k1 (`ECCurve.CreateFromValue("1.3.132.0.10")`,
-or explicit curve parameters where the platform provider does not know the name) and
-`DeriveRawSecretAgreement`. If a platform refuses the curve, fall back to BouncyCastle.
+.NET note: `ECDiffieHellman` with `ECCurve.CreateFromValue("1.3.132.0.10")` (secp256k1) and
+`DeriveRawSecretAgreement` works on Windows (CNG). Linux uses OpenSSL, which also supports the
+curve; if a platform ever refuses it, switch to explicit curve parameters or BouncyCastle.
 
 ## GKCrypt instances
 
@@ -76,8 +76,9 @@ gmac     = tag[0..4]
 ```
 
 The IV is **16 bytes**, so GCM derives its pre-counter block with GHASH (the non-96-bit IV
-path of GCM). .NET `AesGcm` only accepts 12-byte nonces, so Ignite needs its own GHASH-based
-GMAC (straightforward with AES-ECB plus a GF(2^128) multiply) or BouncyCastle's `GcmBlockCipher`.
+path of GCM). .NET `AesGcm` only accepts 12-byte nonces, so Ignite implements GHASH itself
+(`GHash`, 4-bit table multiplication) and builds the GMAC from AES-ECB and GHASH. The GHASH
+implementation is tested against the platform `AesGcm` tag for 12-byte nonces.
 
 ### GMAC key rotation
 
