@@ -17,7 +17,12 @@ public sealed record PsnOAuthOptions(string ClientId, string ClientSecret)
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
 
-    public static PsnOAuthOptions FromEnvironment() => new(
-        Environment.GetEnvironmentVariable(ClientIdVariable) ?? "",
-        Environment.GetEnvironmentVariable(ClientSecretVariable) ?? "");
+    /// <summary>Environment variables first, then the given (settings) values.</summary>
+    public static PsnOAuthOptions Resolve(string? clientId = null, string? clientSecret = null)
+    {
+        var fromEnvironment = new PsnOAuthOptions(
+            Environment.GetEnvironmentVariable(ClientIdVariable) ?? "",
+            Environment.GetEnvironmentVariable(ClientSecretVariable) ?? "");
+        return fromEnvironment.IsConfigured ? fromEnvironment : new PsnOAuthOptions(clientId ?? "", clientSecret ?? "");
+    }
 }

@@ -87,3 +87,28 @@ public class PsnAuthClientTests
             Task.FromResult(respond(request));
     }
 }
+
+public class PsnOAuthOptionsTests
+{
+    [Fact]
+    public void Resolve_PrefersEnvironmentOverSettings()
+    {
+        var previous = (Environment.GetEnvironmentVariable(PsnOAuthOptions.ClientIdVariable), Environment.GetEnvironmentVariable(PsnOAuthOptions.ClientSecretVariable));
+        try
+        {
+            Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientIdVariable, null);
+            Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientSecretVariable, null);
+            Assert.Equal(new PsnOAuthOptions("settings-id", "settings-secret"), PsnOAuthOptions.Resolve("settings-id", "settings-secret"));
+            Assert.False(PsnOAuthOptions.Resolve(null, null).IsConfigured);
+
+            Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientIdVariable, "env-id");
+            Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientSecretVariable, "env-secret");
+            Assert.Equal(new PsnOAuthOptions("env-id", "env-secret"), PsnOAuthOptions.Resolve("settings-id", "settings-secret"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientIdVariable, previous.Item1);
+            Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientSecretVariable, previous.Item2);
+        }
+    }
+}

@@ -47,17 +47,7 @@ internal sealed class AppServices : IAsyncDisposable
 
     public List<string> StartupProblems { get; } = [];
 
-    public PsnOAuthOptions PsnOptions
-    {
-        get
-        {
-            var fromEnvironment = PsnOAuthOptions.FromEnvironment();
-            var settings = Settings.Current;
-            return fromEnvironment.IsConfigured
-                ? fromEnvironment
-                : new PsnOAuthOptions(settings.PsnClientId ?? "", settings.PsnClientSecret ?? "");
-        }
-    }
+    public PsnOAuthOptions PsnOptions => PsnOAuthOptions.Resolve(Settings.Current.PsnClientId, Settings.Current.PsnClientSecret);
 
     public ValueTask DisposeAsync() => Browser.DisposeAsync();
 }

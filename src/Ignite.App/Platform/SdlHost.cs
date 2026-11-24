@@ -105,6 +105,16 @@ internal sealed unsafe class SdlHost : IDisposable
 
     public static void OpenUrl(string url) => SDL.OpenURL(url);
 
+    public static string? ClipboardText()
+    {
+        var text = SDL.GetClipboardText();
+        if (text == null)
+            return null;
+        var value = Marshal.PtrToStringUTF8((nint)text);
+        SDL.Free(text);
+        return value;
+    }
+
     /// <summary>Saves the current render target as a BMP file (used for automated smoke tests).</summary>
     public bool SaveScreenshot(string path)
     {

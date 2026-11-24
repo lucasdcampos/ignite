@@ -22,7 +22,14 @@ internal sealed class MainView : IDisposable
 
     private readonly AppServices _services;
     private readonly HttpClient _http = new();
+    private const int ClipboardPollMilliseconds = 500;
+
     private string _redirectUrl = "";
+    private string _clientId = "";
+    private string _clientSecret = "";
+    private bool _awaitingRedirect;
+    private long _lastClipboardCheck;
+    private string? _ignoredClipboard;
     private string _manualAccountId = "";
     private string _manualAddress = "";
     private string _pin = "";
@@ -103,33 +110,91 @@ internal sealed class MainView : IDisposable
 
         var options = _services.PsnOptions;
         if (options.IsConfigured)
-        {
-            if (ImGui.Button("Sign in with PSN"))
-                SdlHost.OpenUrl(new PsnAuthClient(_http, options).LoginUri.ToString());
-            ImGui.TextWrapped("After signing in, the browser opens a page whose address contains \"code=\". Paste that address here:");
-            ImGui.InputText("Redirect address", ref _redirectUrl, 2048);
-            ImGui.SameLine();
-            if (ImGui.Button("Confirm") && !_busy)
-                _ = RunAsync("Signing in...", CompleteSignInAsync);
-        }
+            DrawSignIn(options);
         else
+            DrawOAuthClientSetup();
+
+        if (ImGui.TreeNode("Enter the account id manually"))
         {
-            ImGui.TextWrapped("PSN sign-in is not configured (IGNITE_PSN_CLIENT_ID / IGNITE_PSN_CLIENT_SECRET). You can enter the account id directly.");
+            ImGui.InputText("Account id (base64)", ref _manualAccountId, 64);
+            ImGui.SameLine();
+            if (ImGui.Button("Save account id"))
+            {
+                try
+                {
+                    _services.Account.Save(PsnAccountId.FromBase64(_manualAccountId.Trim()));
+                    _status = "Account saved.";
+                }
+                catch (FormatException)
+                {
+                    _status = "The account id must be 8 bytes in base64 (12 characters).";
+                }
+            }
+
+            ImGui.TreePop();
+        }
+    }
+
+    private void DrawSignIn(PsnOAuthOptions options)
+    {
+        if (ImGui.Button("Sign in with PSN"))
+        {
+            SdlHost.OpenUrl(new PsnAuthClient(_http, options).LoginUri.ToString());
+            _awaitingRedirect = true;
+            _ignoredClipboard = SdlHost.ClipboardText();
         }
 
-        ImGui.InputText("Account id (base64)", ref _manualAccountId, 64);
+        if (!_awaitingRedirect)
+            return;
+
+        ImGui.TextWrapped(
+            "1. Sign in with your email and password in the browser window that opened.\n"
+            + "2. When it finishes, the browser shows a page whose address contains \"code=\".\n"
+            + "3. Copy that address (Ctrl+L, Ctrl+C). Ignite picks it up automatically.");
+        ImGui.InputText("Or paste the address here", ref _redirectUrl, 2048);
         ImGui.SameLine();
-        if (ImGui.Button("Save account id"))
+        if (ImGui.Button("Confirm") && !_busy)
+            _ = RunAsync("Signing in...", CompleteSignInAsync);
+
+        WatchClipboardForRedirect();
+    }
+
+    private void WatchClipboardForRedirect()
+    {
+        var now = Environment.TickCount64;
+        if (_busy || now - _lastClipboardCheck < ClipboardPollMilliseconds)
+            return;
+        _lastClipboardCheck = now;
+
+        var clipboard = SdlHost.ClipboardText();
+        if (clipboard is null || clipboard == _ignoredClipboard
+            || !clipboard.Contains("remoteplay/redirect", StringComparison.OrdinalIgnoreCase)
+            || PsnAuthClient.ExtractCode(clipboard) is null)
         {
-            try
+            return;
+        }
+
+        _ignoredClipboard = clipboard;
+        _redirectUrl = clipboard;
+        _ = RunAsync("Signing in...", CompleteSignInAsync);
+    }
+
+    private void DrawOAuthClientSetup()
+    {
+        ImGui.TextWrapped(
+            "PSN sign-in needs the OAuth client id and secret of the Remote Play app. Enter them once; "
+            + "they are stored only in your local settings.");
+        ImGui.InputText("Client id", ref _clientId, 128);
+        ImGui.InputText("Client secret", ref _clientSecret, 128, ImGuiInputTextFlags.Password);
+        if (ImGui.Button("Save PSN client") && !string.IsNullOrWhiteSpace(_clientId) && !string.IsNullOrWhiteSpace(_clientSecret))
+        {
+            _services.Settings.Save(_services.Settings.Current with
             {
-                _services.Account.Save(PsnAccountId.FromBase64(_manualAccountId.Trim()));
-                _status = "Account saved.";
-            }
-            catch (FormatException)
-            {
-                _status = "The account id must be 8 bytes in base64 (12 characters).";
-            }
+                PsnClientId = _clientId.Trim(),
+                PsnClientSecret = _clientSecret.Trim(),
+            });
+            _clientSecret = "";
+            _status = "PSN client saved. You can sign in now.";
         }
     }
 
@@ -141,6 +206,7 @@ internal sealed class MainView : IDisposable
         var userId = await client.GetUserIdAsync(tokens.AccessToken);
         _services.Account.Save(PsnAccountId.FromUserId(userId), refreshToken: tokens.RefreshToken);
         _redirectUrl = "";
+        _awaitingRedirect = false;
         _status = "Signed in.";
     }
 

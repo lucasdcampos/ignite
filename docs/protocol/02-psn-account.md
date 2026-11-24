@@ -7,8 +7,10 @@ OAuth 2.0 authorization-code flow the official Remote Play app uses.
 
 The flow uses the official Remote Play app's OAuth client (a public client id and secret).
 The values are not reproduced here; Ignite reads them from its configuration
-(`PsnOAuthOptions`: the `IGNITE_PSN_CLIENT_ID` and `IGNITE_PSN_CLIENT_SECRET` environment
-variables, or the settings file). Without them, only the manual account id entry works.
+(`PsnOAuthOptions.Resolve`: the `IGNITE_PSN_CLIENT_ID` and `IGNITE_PSN_CLIENT_SECRET`
+environment variables, otherwise the client id and secret the user saves once on the account
+screen, stored in the local settings file). Without them, only the manual account id entry
+works.
 
 Requests to the token endpoint authenticate with HTTP Basic auth using
 `client_id:client_secret`.
@@ -28,7 +30,10 @@ Requests to the token endpoint authenticate with HTTP Basic auth using
    `layout_type=popup`, `smcid=remoteplay`, `prompt=always`, `PlatformPrivacyWs1=minimal`.
 2. After sign-in, the browser is redirected to the redirect URI with `?code=<code>`. The
    redirect page itself is irrelevant; the client only needs the `code` query parameter.
-   With a system browser the user pastes the final URL back into the app.
+   With a system browser the user copies the final URL: Ignite watches the clipboard while
+   sign-in is pending and completes it as soon as an address with the redirect URI and a
+   `code` appears (pasting it into the app also works). Capturing the redirect directly
+   would need an embedded web view.
 3. Exchange the code: `POST` to the token endpoint, `Content-Type:
    application/x-www-form-urlencoded`, body
    `grant_type=authorization_code&code=<code>&scope=<scope>&redirect_uri=<redirect uri>`.
