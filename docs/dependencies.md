@@ -18,22 +18,20 @@ resource (`Crypto/rpcrypt-tables.bin`).
 The OAuth client id/secret of the official Remote Play app are not stored in the repository;
 they are supplied through configuration.
 
-## Planned dependencies
+## Dependencies
 
-| Dependency | Use | License | Notes |
-|---|---|---|---|
-| .NET 10 BCL | Runtime, sockets, crypto | MIT | |
-| Google.Protobuf | Protobuf runtime | BSD-3-Clause | |
-| Grpc.Tools (build only) | `.proto` code generation | Apache-2.0 | Not redistributed |
-| SDL3 (native) | Window, input, audio, GPU | zlib | Ship the native library alongside the app |
-| SDL3 C# bindings (e.g. `SDL3-CS`) | Bindings | zlib/MIT (choose at integration) | Record the exact package when added |
-| Dear ImGui (native, via cimgui) | UI | MIT | |
-| ImGui C# bindings (e.g. `Hexa.NET.ImGui`) | Bindings | MIT | Record the exact package when added |
-| FFmpeg (libavcodec, libavutil) | Video decoding | LGPL-2.1+ | Must be a build **without** `--enable-gpl`/`--enable-nonfree`, dynamically linked and replaceable by the user. Ship its license and source offer. |
-| FFmpeg.AutoGen | FFmpeg bindings | LGPL-3.0 | Library is used unmodified as a separate assembly; LGPL obligations are met by shipping it as a replaceable DLL with its license. Alternative: hand-written P/Invoke for the few functions needed (keeps everything MIT). |
-| libopus (native) or Concentus (managed) | Opus decoding | BSD-3-Clause | |
-| BouncyCastle.Cryptography (only if needed) | secp256k1, GCM with 16-byte IV | MIT | Only if the BCL cannot cover it |
-| xUnit, FluentAssertions-free assertions | Tests | Apache-2.0 / MIT | Test only. Avoid FluentAssertions 8+ (commercial license). |
+| Dependency | Version | Use | License | Notes |
+|---|---|---|---|---|
+| .NET 10 BCL | 10.0 | Runtime, sockets, crypto | MIT | |
+| Google.Protobuf | 3.36.2 | Protobuf runtime | BSD-3-Clause | |
+| Grpc.Tools (build only) | 2.85.0 | `.proto` code generation | Apache-2.0 | Not redistributed |
+| FFmpeg.AutoGen | 9.0.1.1 | FFmpeg bindings | LGPL-3.0 | Used unmodified as a separate assembly; ship it replaceable with its license |
+| FFmpeg shared libraries (native) | 9.x (avcodec-63) | Video decoding | LGPL-2.1+ / GPL depending on the build | Distribute an LGPL build (no `--enable-gpl`/`--enable-nonfree`) with its license and source offer. Development builds may be GPL. Located through `IGNITE_FFMPEG_PATH` or the application directory. |
+| Concentus | 2.2.3 | Opus decoding (managed) | BSD-3-Clause | |
+| xUnit, Microsoft.NET.Test.Sdk, coverlet | see `Directory.Packages.props` | Tests | Apache-2.0 / MIT | Test only |
+
+Planned (recorded here when added): SDL3 bindings and native SDL3 (zlib), Dear ImGui
+bindings (MIT).
 
 ## Rules
 

@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Ignite.Media/Ignite.Media.csproj" />
     <Project Path="src/Ignite.Protocol/Ignite.Protocol.csproj" />
     <Project Path="src/Ignite.Psn/Ignite.Psn.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Ignite.Media.Tests/Ignite.Media.Tests.csproj" />
     <Project Path="tests/Ignite.Protocol.Tests/Ignite.Protocol.Tests.csproj" />
     <Project Path="tests/Ignite.Psn.Tests/Ignite.Psn.Tests.csproj" />
   </Folder>
