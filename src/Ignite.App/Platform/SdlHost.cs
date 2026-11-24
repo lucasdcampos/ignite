@@ -24,10 +24,15 @@ internal sealed unsafe class SdlHost : IDisposable
         if (Window.IsNull)
             throw new InvalidOperationException($"Could not create the window: {LastError}");
 
-        Renderer = SDL.CreateRenderer(Window, (byte*)null);
+        // Direct3D 11 lets the decoder share the renderer's device and keep frames on the GPU.
+        if (OperatingSystem.IsWindows())
+            Renderer = SDL.CreateRenderer(Window, "direct3d11");
+        if (Renderer.IsNull)
+            Renderer = SDL.CreateRenderer(Window, (byte*)null);
         if (Renderer.IsNull)
             throw new InvalidOperationException($"Could not create the renderer: {LastError}");
         SetVSync(true);
+        D3D11Device = (nint)SDL.GetPointerProperty(SDL.GetRendererProperties(Renderer), "SDL.renderer.d3d11.device", null);
 
         _imgui = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imgui);
@@ -44,6 +49,9 @@ internal sealed unsafe class SdlHost : IDisposable
     public SDLWindowPtr Window { get; }
 
     public SDLRendererPtr Renderer { get; }
+
+    /// <summary>The renderer's ID3D11Device, or zero when it does not use Direct3D 11.</summary>
+    public nint D3D11Device { get; }
 
     public static string LastError => Marshal.PtrToStringUTF8((nint)SDL.GetError()) ?? "unknown error";
 

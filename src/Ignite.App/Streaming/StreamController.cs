@@ -45,6 +45,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     private TaskCompletionSource<string?>? _passcodeRequest;
     private VideoCodecKind _codec;
     private bool _hardwareDecoding;
+    private volatile bool _decodeOnRenderThread;
     private long _videoBytes;
     private long _fecRecoveries;
     private long _framesAtLastStats;
@@ -90,7 +91,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
                 (frames - _framesAtLastStats) / elapsed,
                 (bytes - _bytesAtLastStats) * 8 / elapsed / 1_000_000,
                 Interlocked.Read(ref _fecRecoveries),
-                _decoder?.HardwareDevice ?? "software",
+                DescribeDecoder(),
                 width,
                 height,
                 _session.Network.RttMilliseconds);
@@ -130,12 +131,26 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     void IStreamSink.OnStreamInfo(IReadOnlyList<VideoStreamProfile> profiles, AudioFormat audio)
     {
-        _decoder = new VideoDecoder(_codec, new VideoDecoderOptions(_hardwareDecoding ? HardwareAcceleration.Auto : HardwareAcceleration.None));
+        // Sharing the renderer's single-threaded device means decoding on the render thread.
+        _decodeOnRenderThread = _hardwareDecoding && _presenter.SharedDevice != 0;
+        if (!_decodeOnRenderThread)
+            _decoder = new VideoDecoder(_codec, new VideoDecoderOptions(_hardwareDecoding ? HardwareAcceleration.Auto : HardwareAcceleration.None));
         var channels = audio.Channels is >= 1 and <= 8 ? audio.Channels : 2;
         var sampleRate = audio.SampleRate > 0 ? audio.SampleRate : 48000;
         _audioDecoder = new OpusAudioDecoder(sampleRate, channels);
         _audio = new AudioOutput(sampleRate, channels);
-        _decodeLoop = Task.Factory.StartNew(DecodeLoop, TaskCreationOptions.LongRunning);
+        if (!_decodeOnRenderThread)
+            _decodeLoop = Task.Factory.StartNew(DecodeLoop, TaskCreationOptions.LongRunning);
+    }
+
+    /// <summary>Called by the render loop: decodes queued frames when they stay on the GPU.</summary>
+    public void DecodePending()
+    {
+        if (!_decodeOnRenderThread || _stop.IsCancellationRequested)
+            return;
+        _decoder ??= new VideoDecoder(_codec, new VideoDecoderOptions(HardwareAcceleration.Auto, _presenter.SharedDevice));
+        while (_frames.Reader.TryRead(out var item))
+            Decode(_decoder, item);
     }
 
     void IStreamSink.OnVideoFrame(ReadOnlyMemory<byte> frame, ReadOnlyMemory<byte>? streamHeader, bool recoveredWithFec)
@@ -186,6 +201,14 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         State = StreamState.Ended;
     }
 
+    private string DescribeDecoder() => _decoder switch
+    {
+        null => "starting",
+        { KeepsFramesOnGpu: true } => $"{_decoder.HardwareDevice} (zero-copy)",
+        { HardwareDevice: { } device } => $"{device} (copy-back)",
+        _ => "software",
+    };
+
     private Task<string?> RequestPasscodeAsync(bool previousAttemptFailed, CancellationToken cancellationToken)
     {
         PasscodeRetry = previousAttemptFailed;
@@ -214,11 +237,15 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
                 continue;
             }
 
-            var decoder = _decoder!;
-            if (item.Header is { } header)
-                decoder.Decode([.. header, .. item.Frame], _presenter);
-            else
-                decoder.Decode(item.Frame, _presenter);
+            Decode(_decoder!, item);
         }
+    }
+
+    private void Decode(VideoDecoder decoder, (byte[] Frame, byte[]? Header) item)
+    {
+        if (item.Header is { } header)
+            decoder.Decode([.. header, .. item.Frame], _presenter);
+        else
+            decoder.Decode(item.Frame, _presenter);
     }
 }

@@ -17,7 +17,7 @@ internal static class Program
     {
         using var host = new SdlHost("Ignite", 1280, 720);
         var services = new AppServices();
-        using var presenter = new VideoPresenter(host.Renderer);
+        using var presenter = new VideoPresenter(host.Renderer, host.D3D11Device);
         using var gamepad = new GamepadInput();
         using var view = new MainView(services);
         StreamController? stream = null;
@@ -63,6 +63,7 @@ internal static class Program
             if (streaming)
             {
                 var (width, height) = host.OutputSize;
+                stream!.DecodePending();
                 presenter.Draw(width, height);
                 while (stream!.GamepadFeedback.TryDequeue(out var feedback))
                     feedback(gamepad);

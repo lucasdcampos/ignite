@@ -18,8 +18,9 @@ public enum HardwareAcceleration
 
 /// <param name="SharedD3D11Device">
 /// Native ID3D11Device of the renderer. When set (Windows only), pictures are decoded on that
-/// device and delivered as <see cref="GpuVideoFrame"/>s without leaving GPU memory. The device
-/// must have multithread protection enabled, because decoding runs on another thread.
+/// device and delivered as <see cref="GpuVideoFrame"/>s without leaving GPU memory. FFmpeg then
+/// runs single-threaded, so creating the decoder and calling <see cref="VideoDecoder.Decode"/>
+/// on the renderer's thread is enough even for devices created without multithread support.
 /// </param>
 public sealed record VideoDecoderOptions(
     HardwareAcceleration Acceleration = HardwareAcceleration.Auto,
@@ -148,6 +149,7 @@ public sealed unsafe class VideoDecoder : IDisposable
 
         _context->hw_device_ctx = buffer;
         _context->extra_hw_frames = ExtraHardwareFrames;
+        _context->thread_count = 1;
         return true;
     }
 
