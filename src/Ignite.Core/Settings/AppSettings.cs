@@ -53,6 +53,9 @@ public sealed record AppSettings
 {
     public StreamQuality Quality { get; init; } = new();
 
+    /// <summary>Set once the first-run setup (sign in, pair, pick a quality) was finished or skipped.</summary>
+    public bool SetupCompleted { get; init; }
+
     public bool HardwareDecoding { get; init; } = true;
 
     public bool VSync { get; init; } = true;

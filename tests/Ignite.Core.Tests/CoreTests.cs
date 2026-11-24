@@ -55,6 +55,41 @@ public sealed class CoreTests : IDisposable
         Assert.Equal(0.1, options.MaxReportedPacketLoss);
     }
 
+    [Theory]
+    [InlineData(QualityPreset.Performance, Resolution.P720, VideoCodec.H264)]
+    [InlineData(QualityPreset.Balanced, Resolution.P1080, VideoCodec.Hevc)]
+    [InlineData(QualityPreset.Quality, Resolution.P1440, VideoCodec.Hevc)]
+    public void QualityPreset_RoundTripsThroughMatch(QualityPreset preset, Resolution resolution, VideoCodec codec)
+    {
+        var quality = preset.ToQuality();
+
+        Assert.Equal(new StreamQuality(resolution, 60, codec), quality);
+        Assert.Equal(preset, QualityPresets.Match(quality));
+    }
+
+    [Fact]
+    public void QualityPreset_DefaultQualityIsBalancedAndCustomValuesMatchNothing()
+    {
+        Assert.Equal(QualityPreset.Balanced, QualityPresets.Match(new AppSettings().Quality));
+        Assert.Null(QualityPresets.Match(QualityPreset.Balanced.ToQuality() with { BitrateKbps = 20000 }));
+        Assert.Null(QualityPresets.Match(QualityPreset.Balanced.ToQuality() with { Fps = 30 }));
+    }
+
+    [Fact]
+    public void AppPaths_DataDirectoryCanBeOverridden()
+    {
+        Environment.SetEnvironmentVariable(AppPaths.DataDirectoryVariable, _directory);
+        try
+        {
+            Assert.Equal(_directory, AppPaths.Default().DataDirectory);
+            Assert.True(Directory.Exists(_directory));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(AppPaths.DataDirectoryVariable, null);
+        }
+    }
+
     [Fact]
     public void ConsoleRegistry_StoresProtectedCredentials()
     {

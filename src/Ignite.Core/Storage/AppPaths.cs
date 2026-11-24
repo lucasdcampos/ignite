@@ -17,8 +17,15 @@ public sealed class AppPaths
 
     public string AccountFile => Path.Combine(DataDirectory, "account.json");
 
+    /// <summary>Overrides the data directory, for example to try the first-run setup without losing data.</summary>
+    public const string DataDirectoryVariable = "IGNITE_DATA_DIR";
+
     public static AppPaths Default()
     {
+        var custom = Environment.GetEnvironmentVariable(DataDirectoryVariable);
+        if (!string.IsNullOrEmpty(custom))
+            return new AppPaths(custom);
+
         string root;
         if (OperatingSystem.IsWindows())
         {

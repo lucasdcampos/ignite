@@ -82,9 +82,11 @@ do not reference each other. Interfaces that cross boundaries (`IStreamSink`,
 ## Configuration and storage
 
 Per-user application data directory (`%APPDATA%/Ignite` on Windows,
-`$XDG_CONFIG_HOME/ignite` on Linux), JSON files:
+`$XDG_CONFIG_HOME/ignite` on Linux), or the directory named by the `IGNITE_DATA_DIR`
+environment variable (handy to try the first-run setup without touching real data). JSON files:
 
-- `settings.json`: quality presets and input options.
+- `settings.json`: stream quality (one of the Performance / Balanced / Quality presets or
+  custom values), display options and whether the first-run setup was completed.
 - `consoles.json`: registered consoles (nickname, MAC, host id, regist key, RP key).
 - `account.json`: PSN account id and refresh token. Secrets are stored with the platform
   protection API where available (DPAPI on Windows; on Linux the files are readable only by the user).
