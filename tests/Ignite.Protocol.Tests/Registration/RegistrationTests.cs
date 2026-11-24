@@ -100,21 +100,23 @@ public class RegistrationTests
         {
             _statusLine = statusLine;
             _reason = reason;
-            // UDP and TCP must share a port; some ports are reserved for one protocol on Windows.
+            // UDP and TCP must share a port; Windows reserves whole port blocks for one protocol,
+            // so try random ports instead of consecutive ephemeral ones.
             for (var attempt = 0; ; attempt++)
             {
-                var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-                var port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
-                var tcp = new TcpListener(IPAddress.Loopback, port);
+                var port = Random.Shared.Next(20000, 60000);
+                UdpClient? udp = null;
                 try
                 {
+                    udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, port));
+                    var tcp = new TcpListener(IPAddress.Loopback, port);
                     tcp.Start();
                     (_udp, _tcp, Port) = (udp, tcp, port);
                     break;
                 }
-                catch (SocketException) when (attempt < 20)
+                catch (SocketException) when (attempt < 200)
                 {
-                    udp.Dispose();
+                    udp?.Dispose();
                 }
             }
         }
