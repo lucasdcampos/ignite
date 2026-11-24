@@ -1,20 +1,23 @@
+using System.Text.Json.Serialization;
 using Ignite.Protocol.Session;
 using Ignite.Protocol.Stream;
 
 namespace Ignite.Core.Settings;
 
+/// <summary>
+/// Stream resolutions. A PS5 rejects anything above 1080p at stream start
+/// (docs/protocol/09-stream-connection.md#launch-spec).
+/// </summary>
 public enum Resolution
 {
     P360,
     P540,
     P720,
     P1080,
-    P1440,
-    P2160,
 }
 
 public sealed record StreamQuality(
-    Resolution Resolution = Resolution.P1080,
+    [property: JsonConverter(typeof(ResolutionJsonConverter))] Resolution Resolution = Resolution.P1080,
     int Fps = 60,
     VideoCodec Codec = VideoCodec.Hevc,
     int? BitrateKbps = null)
@@ -25,8 +28,6 @@ public sealed record StreamQuality(
         Resolution.P540 => (960, 540),
         Resolution.P720 => (1280, 720),
         Resolution.P1080 => (1920, 1080),
-        Resolution.P1440 => (2560, 1440),
-        Resolution.P2160 => (3840, 2160),
         _ => throw new ArgumentOutOfRangeException(nameof(Resolution)),
     };
 
@@ -37,8 +38,6 @@ public sealed record StreamQuality(
         Resolution.P540 => 6000,
         Resolution.P720 => 10000,
         Resolution.P1080 => 15000,
-        Resolution.P1440 => 30000,
-        Resolution.P2160 => 50000,
         _ => 15000,
     };
 

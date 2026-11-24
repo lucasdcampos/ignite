@@ -16,7 +16,7 @@ PS5, play) but gives you real control over stream quality: resolution, frame rat
 - PSN sign-in (or manual account id) and pairing with the console PIN
 - Hardware video decoding (D3D11VA on Windows, VAAPI on Linux) with software fallback
 - Opus audio, DualSense and other SDL-supported gamepads, keyboard fallback
-- Quality settings: 360p to 2160p, 30/60 fps, H.264, HEVC or HEVC HDR, custom bitrate
+- Quality settings: 360p to 1080p, 30/60 fps, H.264, HEVC or HEVC HDR, custom bitrate up to 100 Mbps
 
 Not planned for now: PS4 support, remote play over the internet.
 
@@ -48,8 +48,8 @@ The first time Ignite opens, a short setup guides you through three steps:
    land on (Ctrl+L, Ctrl+C); Ignite detects it on the clipboard and finishes the sign-in.
 2. **Pair your PS5**: on the console open *Settings > System > Remote Play > Pair Device*,
    pick it in Ignite and type the 8-digit code shown on the TV.
-3. **Choose the quality**: Performance (720p), Balanced (1080p) or Quality (1440p). Custom
-   resolution, frame rate, codec and bitrate are in Settings.
+3. **Choose the quality**: Performance (720p), Balanced (1080p) or Quality (1080p at a
+   higher bitrate). Custom resolution, frame rate, codec and bitrate are in Settings.
 
 After that, the home screen shows your consoles. Click **Play** (or **Turn on and play** if
 the console is in rest mode). While streaming, **F1** shows statistics and the disconnect

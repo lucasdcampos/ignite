@@ -108,7 +108,7 @@ These codes are shared with the session request.
 |---|---|
 | `0x80108b09` | Registration failed, usually a wrong PIN |
 | `0x80108b02` | Invalid PSN account id |
-| `0x80108b10` | Remote Play already in use |
+| `0x80108b10` | Remote Play already in use. Also returned to a session request made a few seconds after the previous session ended, while the console is still tearing it down (observed on a PS5; waiting about 15 s was enough). |
 | `0x80108b15` | Remote Play crashed on the console |
 | `0x80108b11` | RP-Version mismatch |
 | `0x80108bff` | Unknown |

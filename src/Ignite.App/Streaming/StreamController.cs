@@ -193,7 +193,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     void IStreamSink.OnPadInfo(PadInfo info) => GamepadFeedback.Enqueue(g => g.SetLightbar(info.Red, info.Green, info.Blue));
 
-    void IStreamSink.OnDisconnected(string reason) => Message = $"The console ended the stream: {reason}";
+    void IStreamSink.OnDisconnected(string reason) => Message = StreamEndMessages.ForDisconnect(reason);
 
     private async Task ConnectAsync(RpCryptTables tables, IPAddress address, StoredConsole console, StreamOptions options)
     {
@@ -212,7 +212,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         }
         catch (Exception e) when (e is RemotePlayException or IOException or System.Net.Sockets.SocketException or InvalidOperationException or System.Security.Cryptography.CryptographicException)
         {
-            Message = $"Connection failed: {e.Message}";
+            Message = StreamEndMessages.ForFailure(e);
         }
 
         State = StreamState.Ended;

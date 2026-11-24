@@ -134,10 +134,20 @@ console accepts as is):
 | `handshakeKey` | Base64 of the 16-byte handshake key |
 
 The resolution, frame rate and bitrate here are what gives Ignite its quality options. Known
-working values on PS5: 640×360, 960×540, 1280×720, 1920×1080 (and higher on consoles that
-support it), 30/60 fps, bitrate chosen freely. Reasonable defaults are 2, 6, 10 and 15 Mbps
-for 360p, 540p, 720p and 1080p. The PS4-only restrictions (no HEVC, no 1080p on base PS4) do
-not apply.
+working values on PS5: 640×360, 960×540, 1280×720 and 1920×1080, 30/60 fps, with `avc`,
+`hevc` and `hevc` + `HDR`. Reasonable defaults are 2, 6, 10 and 15 Mbps for 360p, 540p, 720p
+and 1080p. The PS4-only restrictions (no HEVC, no 1080p on base PS4) do not apply.
+
+Verified on a PS5 (standard model, 2026-11-24):
+
+- 1080p was accepted with `bwKbpsSent` up to 100000 (100 Mbps) in both codecs.
+- **Resolutions above 1080p are rejected.** 2560×1440 and 3840×2160 complete BIG/BANG, then
+  the console sends `DISCONNECT` instead of `STREAMINFO`, whatever the codec or bitrate:
+  - `hevc`: `Nagare did not init! AvCap failed to initialize video: [InitResult:-6]`
+  - `avc`: `Nagare did not init! AvCap failed to initialize video: [InitResult:-2]`
+
+  "AvCap" is the console's capture/encoder; a client should not offer these resolutions.
+  Whether a PS5 Pro accepts them is an open question.
 
 ## BANG
 

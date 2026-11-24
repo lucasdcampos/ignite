@@ -83,9 +83,12 @@ technical options stay behind "Customize" and "Advanced".
     disabled *Not available* when it is not found. Banners report start-up problems, why the
     last stream ended and unpaired consoles found on the network.
   - **Pair**: sign in when needed, pick a discovered console, type the PIN.
-  - **Settings**: quality presets (Performance 720p/H.264, Balanced 1080p/HEVC, Quality
-    1440p/HEVC, all 60 fps) with custom values, display toggles, account, consoles, keyboard
-    controls and advanced options.
+  - **Settings**: quality presets (Performance 720p/H.264/10 Mbps, Balanced 1080p/HEVC/15 Mbps,
+    Quality 1080p/HEVC/30 Mbps, all 60 fps) with custom values (360p to 1080p, since the console
+    rejects higher resolutions), display toggles, account, consoles, keyboard controls and
+    advanced options. Settings saved by versions that offered 1440p/2160p load as 1080p.
+    Disconnects caused by rejected video settings and "in use" errors are explained in plain
+    words (`StreamEndMessages`).
 - `Ui/StreamOverlay` draws over the video: the connecting screen, a short "Press F1" hint, the
   F1 menu (statistics, disconnect) and the console passcode prompt.
 - `Ui/Widgets` builds the controls (buttons, cards, toggles, option cards, steps, banners) on

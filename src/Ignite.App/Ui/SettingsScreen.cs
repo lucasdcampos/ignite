@@ -8,7 +8,7 @@ namespace Ignite.App.Ui;
 /// <summary>Quality, display, account and console settings, plus the advanced options.</summary>
 internal sealed class SettingsScreen
 {
-    private static readonly string[] ResolutionNames = ["360p", "540p", "720p", "1080p", "1440p", "4K"];
+    private static readonly string[] ResolutionNames = ["360p", "540p", "720p", "1080p"];
     private static readonly string[] FpsNames = ["30 fps", "60 fps"];
     private static readonly int[] FpsValues = [30, 60];
     private static readonly string[] CodecNames = ["H.264", "HEVC", "HEVC HDR"];
@@ -80,7 +80,6 @@ internal sealed class SettingsScreen
         if (custom)
         {
             ImGui.SameLine();
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + Theme.Dp(10));
             Widgets.Text("Custom settings in use", Theme.SmallSize, Theme.AccentHover);
         }
 

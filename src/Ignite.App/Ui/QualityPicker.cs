@@ -10,9 +10,9 @@ internal static class QualityPicker
 
     private static readonly Option[] Options =
     [
-        new(QualityPreset.Performance, Icons.Zap, "Performance", "720p  ·  60 fps", "Smoothest. Best on Wi-Fi or slower networks."),
-        new(QualityPreset.Balanced, Icons.Gauge, "Balanced", "1080p  ·  60 fps", "Sharp and smooth on most home networks.", "Recommended"),
-        new(QualityPreset.Quality, Icons.Gem, "Quality", "1440p  ·  60 fps", "Sharpest picture. Best with a wired connection."),
+        new(QualityPreset.Performance, Icons.Zap, "Performance", "720p  ·  60 fps  ·  10 Mbps", "Smoothest. Best on Wi-Fi or slower networks."),
+        new(QualityPreset.Balanced, Icons.Gauge, "Balanced", "1080p  ·  60 fps  ·  15 Mbps", "Sharp and smooth on most home networks.", "Recommended"),
+        new(QualityPreset.Quality, Icons.Gem, "Quality", "1080p  ·  60 fps  ·  30 Mbps", "Cleanest picture in fast scenes. Best with a wired connection."),
     ];
 
     /// <summary>Draws the presets; returns the one the user picked this frame.</summary>

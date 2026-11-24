@@ -2,7 +2,10 @@ using Ignite.Protocol.Session;
 
 namespace Ignite.Core.Settings;
 
-/// <summary>Named quality levels offered to users who do not want to tune each option.</summary>
+/// <summary>
+/// Named quality levels offered to users who do not want to tune each option. The console
+/// streams at most 1080p, so the top level differs from the middle one by bitrate.
+/// </summary>
 public enum QualityPreset
 {
     Performance,
@@ -18,7 +21,7 @@ public static class QualityPresets
     {
         QualityPreset.Performance => new StreamQuality(Resolution.P720, 60, VideoCodec.H264),
         QualityPreset.Balanced => new StreamQuality(Resolution.P1080, 60, VideoCodec.Hevc),
-        QualityPreset.Quality => new StreamQuality(Resolution.P1440, 60, VideoCodec.Hevc),
+        QualityPreset.Quality => new StreamQuality(Resolution.P1080, 60, VideoCodec.Hevc, 30000),
         _ => throw new ArgumentOutOfRangeException(nameof(preset)),
     };
 

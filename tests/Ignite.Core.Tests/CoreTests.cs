@@ -24,12 +24,28 @@ public sealed class CoreTests : IDisposable
     public void Settings_RoundTrip()
     {
         var paths = new AppPaths(_directory);
-        var settings = new AppSettings { Quality = new StreamQuality(Resolution.P1440, 60, VideoCodec.HevcHdr, 40000), VSync = false };
+        var settings = new AppSettings { Quality = new StreamQuality(Resolution.P540, 30, VideoCodec.HevcHdr, 40000), VSync = false };
 
         new SettingsStore(paths).Save(settings);
         var loaded = new SettingsStore(paths).Current;
 
         Assert.Equal(settings, loaded);
+    }
+
+    [Theory]
+    [InlineData("P2160")]
+    [InlineData("P1440")]
+    [InlineData("Unknown")]
+    public void Settings_LoadUnsupportedResolutionsAs1080p(string resolution)
+    {
+        var paths = new AppPaths(_directory);
+        File.WriteAllText(paths.SettingsFile, $$"""{ "quality": { "resolution": "{{resolution}}", "fps": 60, "codec": "H264", "bitrateKbps": 100000 }, "setupCompleted": true, "vSync": false }""");
+
+        var loaded = new SettingsStore(paths).Current;
+
+        Assert.Equal(new StreamQuality(Resolution.P1080, 60, VideoCodec.H264, 100000), loaded.Quality);
+        Assert.True(loaded.SetupCompleted);
+        Assert.False(loaded.VSync);
     }
 
     [Fact]
@@ -44,7 +60,7 @@ public sealed class CoreTests : IDisposable
     [Theory]
     [InlineData(Resolution.P720, null, 1280, 720, 10000)]
     [InlineData(Resolution.P1080, 25000, 1920, 1080, 25000)]
-    [InlineData(Resolution.P2160, null, 3840, 2160, 50000)]
+    [InlineData(Resolution.P360, null, 640, 360, 2000)]
     public void StreamQuality_MapsToStreamOptions(Resolution resolution, int? bitrate, int width, int height, int expectedBitrate)
     {
         var options = new StreamQuality(resolution, 60, VideoCodec.H264, bitrate).ToStreamOptions(dualSense: true, maxReportedLoss: 0.1);
@@ -58,12 +74,12 @@ public sealed class CoreTests : IDisposable
     [Theory]
     [InlineData(QualityPreset.Performance, Resolution.P720, VideoCodec.H264)]
     [InlineData(QualityPreset.Balanced, Resolution.P1080, VideoCodec.Hevc)]
-    [InlineData(QualityPreset.Quality, Resolution.P1440, VideoCodec.Hevc)]
-    public void QualityPreset_RoundTripsThroughMatch(QualityPreset preset, Resolution resolution, VideoCodec codec)
+    [InlineData(QualityPreset.Quality, Resolution.P1080, VideoCodec.Hevc, 30000)]
+    public void QualityPreset_RoundTripsThroughMatch(QualityPreset preset, Resolution resolution, VideoCodec codec, int? bitrate = null)
     {
         var quality = preset.ToQuality();
 
-        Assert.Equal(new StreamQuality(resolution, 60, codec), quality);
+        Assert.Equal(new StreamQuality(resolution, 60, codec, bitrate), quality);
         Assert.Equal(preset, QualityPresets.Match(quality));
     }
 
