@@ -133,6 +133,34 @@ DATA chunks on the stream connection with these data types:
 The type and parameter bytes map directly to the DualSense output report's adaptive trigger
 fields (requires `RP-PadProcNo: 3`, see [Ctrl](06-ctrl.md)).
 
+#### Applying effects with SDL3
+
+Pass a 47-byte DualSense effects payload to `SDL_SendGamepadEffect`. This is the effects
+body, **without** a USB/Bluetooth report ID, sequence byte or CRC; SDL adds the transport
+framing. Start with zeroes, then fill only these fields:
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 1 | Enable bits: `0x0C` (`0x04` right trigger, `0x08` left trigger) |
+| 10 | 1 | Right trigger effect type |
+| 11 | 10 | Right trigger parameters, unchanged from the console |
+| 21 | 1 | Left trigger effect type |
+| 22 | 10 | Left trigger parameters, unchanged from the console |
+
+The console's left/right order is thus reversed in the SDL effects body. Leave the rumble,
+lightbar, audio control and other enable fields zero, so a trigger update changes only the
+two triggers. Do not interpret or scale the ten parameter bytes.
+
+Apply effects only to a connected DualSense, on the render thread with the other gamepad
+feedback. On stream termination (user disconnect, console disconnect, connection failure
+or app exit), discard pending feedback and send the same payload with both effect types
+set to **`0x05` (Off)** and all twenty parameters zero. Reset before closing a gamepad as
+well, so an active resistance effect cannot survive a session or gamepad switch. Adaptive
+triggers work over USB and Bluetooth; the USB-only restriction applies to PCM haptics.
+
+Layout reference: [SDL DualSense effects body](https://github.com/libsdl-org/SDL/blob/main/src/joystick/hidapi/SDL_hidapi_ps5.c).
+The Off mode byte is documented by [Nielk1's trigger effect research](https://gist.github.com/Nielk1/6d54cc2c00d2201ccb8c2720ad7538db).
+
 ### Pad info (data type 9)
 
 Two layouts, distinguished by size:

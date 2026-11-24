@@ -13,7 +13,8 @@ public interface IStreamSink
 
     void OnVideoFrame(ReadOnlyMemory<byte> frame, ReadOnlyMemory<byte>? streamHeader, bool recoveredWithFec);
 
-    void OnAudioFrame(ReadOnlySpan<byte> opusFrame, bool haptics);
+    /// <summary>An Opus unit, or raw 3 kHz stereo S16LE PCM when haptics is true.</summary>
+    void OnAudioFrame(ReadOnlySpan<byte> frame, bool haptics);
 
     void OnRumble(byte left, byte right);
 

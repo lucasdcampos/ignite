@@ -134,6 +134,34 @@ public class AvTests
         Assert.All(sink.Frames, f => Assert.Equal((byte)f.Index, f.Data[0]));
     }
 
+    [Fact]
+    public void AudioReceiver_KeepsPcmHapticsIndependentAndRecoversRedundantUnits()
+    {
+        var sink = new AudioSink();
+        var receiver = new AudioReceiver(sink);
+        var pcm = new byte[] { 0x00, 0x80, 0xFF, 0x7F, 0x34, 0x12, 0xCC, 0xED };
+        var packets = new[]
+        {
+            AvTestPackets.Audio(10, 1, 0, [[0xAA]]),
+            AvTestPackets.Audio(10, 1, 0, [pcm], haptics: true),
+            AvTestPackets.Audio(10, 1, 0, [pcm], haptics: true),
+            AvTestPackets.Audio(12, 1, 1, [pcm, pcm], haptics: true),
+            AvTestPackets.Audio(11, 1, 0, [[0xBB]]),
+        };
+
+        foreach (var datagram in packets)
+        {
+            Assert.True(AvPacket.TryParse(datagram, out var packet));
+            receiver.OnPacket(packet, datagram.AsSpan(packet.PayloadOffset));
+        }
+
+        Assert.Equal(new ushort[] { 10, 10, 11, 12, 11 }, sink.Frames.Select(f => f.Index));
+        Assert.Equal([false, true, true, true, false], sink.Frames.Select(f => f.Haptics));
+        Assert.All(sink.Frames.Where(f => f.Haptics), frame => Assert.Equal(pcm, frame.Data));
+        Assert.Equal(new byte[] { 0xAA }, sink.Frames[0].Data);
+        Assert.Equal(new byte[] { 0xBB }, sink.Frames[4].Data);
+    }
+
     private static void Feed(VideoReceiver receiver, ushort frameIndex, byte[] frame, int sourceUnits, int fecUnits, int[] drop)
     {
         var units = AvTestPackets.EncodeFrame(frame, sourceUnits, fecUnits);
@@ -160,8 +188,8 @@ public class AvTests
 
     private sealed class AudioSink : IAudioReceiverSink
     {
-        public List<(ushort Index, byte[] Data)> Frames { get; } = [];
+        public List<(ushort Index, byte[] Data, bool Haptics)> Frames { get; } = [];
 
-        public void OnAudioFrame(ushort frameIndex, ReadOnlySpan<byte> opusFrame, bool haptics) => Frames.Add((frameIndex, opusFrame.ToArray()));
+        public void OnAudioFrame(ushort frameIndex, ReadOnlySpan<byte> opusFrame, bool haptics) => Frames.Add((frameIndex, opusFrame.ToArray(), haptics));
     }
 }

@@ -21,7 +21,7 @@ public sealed record AudioFormat(int Channels, int BitsPerSample, int SampleRate
 
 public interface IAudioReceiverSink
 {
-    /// <summary>One encoded Opus frame, delivered once per frame index.</summary>
+    /// <summary>One Opus or haptic PCM unit, delivered once per frame index in its stream.</summary>
     void OnAudioFrame(ushort frameIndex, ReadOnlySpan<byte> opusFrame, bool haptics);
 }
 

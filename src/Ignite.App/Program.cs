@@ -1,6 +1,7 @@
 using System.Numerics;
 using Hexa.NET.ImGui;
 using Hexa.NET.SDL3;
+using Ignite.App.Audio;
 using Ignite.App.Input;
 using Ignite.App.Platform;
 using Ignite.App.Streaming;
@@ -19,6 +20,7 @@ internal static class Program
         var services = new AppServices();
         using var presenter = new VideoPresenter(host.Renderer, host.D3D11Device);
         using var gamepad = new GamepadInput();
+        using var haptics = new HapticsOutput();
         using var view = new MainView(services);
         StreamController? stream = null;
         var showOverlay = false;
@@ -28,8 +30,11 @@ internal static class Program
         {
             if (entry.Address is null)
                 return;
+            stream?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            gamepad.ResetFeedback();
+            haptics.SetEnabled(false);
             presenter.Clear();
-            stream = new StreamController(presenter);
+            stream = new StreamController(presenter, haptics);
             stream.Start(services.Tables, entry.Address, console, services.Settings.Current, gamepad.IsDualSense || !gamepad.Connected);
             fullscreen = services.Settings.Current.Fullscreen;
             host.SetFullscreen(fullscreen);
@@ -47,6 +52,8 @@ internal static class Program
                 var type = (SDLEventType)e.Type;
                 if (type is SDLEventType.GamepadAdded or SDLEventType.GamepadRemoved)
                     gamepad.Refresh();
+                if (type is SDLEventType.AudioDeviceAdded or SDLEventType.AudioDeviceRemoved)
+                    haptics.Refresh();
                 if (type == SDLEventType.KeyDown && e.Key.Repeat == 0)
                 {
                     if (e.Key.Scancode == SDLScancode.F1)
@@ -59,7 +66,13 @@ internal static class Program
             host.SetVSync(services.Settings.Current.VSync);
             host.BeginFrame();
 
-            var streaming = stream is { State: StreamState.Connecting or StreamState.Streaming };
+            var streaming = stream is { State: StreamState.Connecting or StreamState.Streaming, IsStopping: false };
+            haptics.SetEnabled(streaming && gamepad.IsUsbDualSense);
+            if (!streaming)
+            {
+                stream?.GamepadFeedback.Clear();
+                gamepad.ResetFeedback();
+            }
             if (streaming)
             {
                 var (width, height) = host.OutputSize;
@@ -85,6 +98,9 @@ internal static class Program
                 running = false;
         }
 
+        haptics.SetEnabled(false);
+        gamepad.ResetFeedback();
+        stream?.GamepadFeedback.Clear();
         stream?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         services.DisposeAsync().AsTask().GetAwaiter().GetResult();
         return 0;

@@ -7,6 +7,7 @@
     <Project Path="src/Ignite.Psn/Ignite.Psn.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Ignite.App.Tests/Ignite.App.Tests.csproj" />
     <Project Path="tests/Ignite.Core.Tests/Ignite.Core.Tests.csproj" />
     <Project Path="tests/Ignite.Media.Tests/Ignite.Media.Tests.csproj" />
     <Project Path="tests/Ignite.Protocol.Tests/Ignite.Protocol.Tests.csproj" />

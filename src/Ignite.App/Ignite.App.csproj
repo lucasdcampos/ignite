@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Ignite.App.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Hexa.NET.ImGui" />
     <PackageReference Include="Hexa.NET.ImGui.Backends" />
     <PackageReference Include="Hexa.NET.ImGui.Backends.SDL3" />

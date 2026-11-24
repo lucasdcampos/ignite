@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Hexa.NET.SDL3;
 using Ignite.Protocol.Input;
+using Ignite.Protocol.Stream;
 
 namespace Ignite.App.Input;
 
@@ -33,12 +34,15 @@ internal sealed unsafe class GamepadInput : IDisposable
 
     private SDLGamepadPtr _gamepad;
     private bool _hasMotion;
+    private bool _feedbackActive;
 
     public string? Name { get; private set; }
 
     public bool IsDualSense { get; private set; }
 
     public bool Connected => !_gamepad.IsNull;
+
+    public bool IsUsbDualSense => IsDualSense && SDL.GetGamepadConnectionState(_gamepad) == SDLJoystickConnectionState.Wired;
 
     /// <summary>Opens the first gamepad if none is open. Call on device added/removed events.</summary>
     public void Refresh()
@@ -83,14 +87,46 @@ internal sealed unsafe class GamepadInput : IDisposable
         };
     }
 
-    public void Rumble(byte left, byte right) =>
+    public void Rumble(byte left, byte right)
+    {
+        if (_gamepad.IsNull)
+            return;
+        _feedbackActive = true;
         SDL.RumbleGamepad(_gamepad, (ushort)(left * 257), (ushort)(right * 257), 5000);
+    }
+
+    public void SetTriggerEffects(TriggerEffect left, TriggerEffect right)
+    {
+        if (!IsDualSense || _gamepad.IsNull)
+            return;
+        Span<byte> effect = stackalloc byte[DualSenseEffects.Size];
+        DualSenseEffects.Write(effect, left, right);
+        _feedbackActive = true;
+        fixed (byte* data = effect)
+            SDL.SendGamepadEffect(_gamepad, data, effect.Length);
+    }
+
+    /// <summary>Call on the render thread when streaming ends, before accepting another session's feedback.</summary>
+    public void ResetFeedback()
+    {
+        if (!_feedbackActive || _gamepad.IsNull)
+            return;
+        SDL.RumbleGamepad(_gamepad, 0, 0, 0);
+        if (IsDualSense)
+        {
+            Span<byte> effect = stackalloc byte[DualSenseEffects.Size];
+            DualSenseEffects.WriteReset(effect);
+            fixed (byte* data = effect)
+                SDL.SendGamepadEffect(_gamepad, data, effect.Length);
+        }
+        _feedbackActive = false;
+    }
 
     public void SetLightbar(byte red, byte green, byte blue) => SDL.SetGamepadLED(_gamepad, red, green, blue);
 
     public void Dispose() => Close();
 
-    private void Open(int id)
+    internal void Open(int id)
     {
         _gamepad = SDL.OpenGamepad(id);
         if (_gamepad.IsNull)
@@ -107,6 +143,7 @@ internal sealed unsafe class GamepadInput : IDisposable
 
     private void Close()
     {
+        ResetFeedback();
         if (!_gamepad.IsNull)
             SDL.CloseGamepad(_gamepad);
         _gamepad = default;

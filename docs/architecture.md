@@ -39,7 +39,8 @@ src/
   Ignite.App          Executable "Ignite": SDL3 window, ImGui UI, video presentation, audio
                       output, gamepad/keyboard input, stream controller.
 tests/
-  Ignite.Protocol.Tests, Ignite.Psn.Tests, Ignite.Media.Tests, Ignite.Core.Tests
+  Ignite.Protocol.Tests, Ignite.Psn.Tests, Ignite.Media.Tests, Ignite.Core.Tests,
+  Ignite.App.Tests
 ```
 
 Dependency direction: `App -> Core -> (Protocol, Psn, Media)`. `Protocol`, `Psn` and `Media`
@@ -56,8 +57,15 @@ do not reference each other. Interfaces that cross boundaries (`IStreamSink`,
   80 ms are queued the queue is cleared to keep latency bounded.
 - Input: the render loop samples SDL input once per frame and pushes state to the feedback
   sender, which sends at most every 8 ms and at least every 200 ms.
-- Gamepad feedback from the console (rumble, lightbar) is queued and applied on the render
-  thread.
+- Gamepad feedback from the console (rumble, lightbar, adaptive triggers) is queued and
+  applied on the render thread. Ending a stream discards pending feedback and resets the
+  triggers on that thread; closing a gamepad also resets any active effects.
+- DualSense haptics bypass Opus. A dedicated SDL stream expands 3 kHz stereo PCM to four
+  channels (silent channels 1/2, actuators on 3/4) and resamples to 48 kHz. The render thread
+  opens/closes the named USB audio device as the selected gamepad and stream change;
+  a lock serializes these operations with PCM submission on the network thread. The input
+  queue has the same 80 ms bound as game audio. Legacy rumble is suppressed while this
+  output is available, because it disables the DualSense's audio haptic mode.
 
 ## Testing approach
 
@@ -65,6 +73,9 @@ do not reference each other. Interfaces that cross boundaries (`IStreamSink`,
   (inputs chosen by us, only the outputs are kept) and with in-process fake consoles that
   play the console side of each exchange over loopback sockets.
 - Media tests decode small H.264/HEVC clips generated with FFmpeg (`tests/Ignite.Media.Tests/Fixtures`).
+- App tests check DualSense effects against byte vectors, capture SDL effect submission and
+  resets with a virtual gamepad, and exercise native SDL resampling to verify channel
+  routing, sample counts, continuity and the haptics queue's latency bound without hardware.
 - The app has a smoke-test mode: `IGNITE_SCREENSHOT=<file.bmp>` renders 90 frames, saves a
   screenshot and exits.
 

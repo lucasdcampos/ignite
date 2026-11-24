@@ -33,6 +33,7 @@ internal sealed record StreamStatistics(double Fps, double VideoMbps, long FecRe
 internal sealed class StreamController : IStreamSink, IAsyncDisposable
 {
     private readonly VideoPresenter _presenter;
+    private readonly HapticsOutput _haptics;
     private readonly Channel<(byte[] Frame, byte[]? Header)> _frames =
         Channel.CreateBounded<(byte[], byte[]?)>(new BoundedChannelOptions(8) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
     private readonly CancellationTokenSource _stop = new();
@@ -52,11 +53,17 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     private long _bytesAtLastStats;
     private StreamStatistics? _statistics;
 
-    public StreamController(VideoPresenter presenter) => _presenter = presenter;
+    public StreamController(VideoPresenter presenter, HapticsOutput haptics)
+    {
+        _presenter = presenter;
+        _haptics = haptics;
+    }
 
     public StreamState State { get; private set; }
 
     public string? Message { get; private set; }
+
+    public bool IsStopping => _stop.IsCancellationRequested;
 
     public bool PasscodeRequested => _passcodeRequest is { Task.IsCompleted: false };
 
@@ -161,18 +168,28 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         _frames.Writer.TryWrite((frame.ToArray(), streamHeader?.ToArray()));
     }
 
-    void IStreamSink.OnAudioFrame(ReadOnlySpan<byte> opusFrame, bool haptics)
+    void IStreamSink.OnAudioFrame(ReadOnlySpan<byte> frame, bool haptics)
     {
-        if (haptics || _audioDecoder is null || _audio is null)
+        if (haptics)
+        {
+            _haptics.Play(frame);
             return;
-        _audio.Play(_audioDecoder.Decode(opusFrame));
+        }
+        if (_audioDecoder is null || _audio is null)
+            return;
+        _audio.Play(_audioDecoder.Decode(frame));
     }
 
-    void IStreamSink.OnRumble(byte left, byte right) => GamepadFeedback.Enqueue(g => g.Rumble(left, right));
-
-    void IStreamSink.OnTriggerEffects(TriggerEffect left, TriggerEffect right)
+    void IStreamSink.OnRumble(byte left, byte right) => GamepadFeedback.Enqueue(g =>
     {
-    }
+        if (_haptics.Available)
+            g.Rumble(0, 0);
+        else
+            g.Rumble(left, right);
+    });
+
+    void IStreamSink.OnTriggerEffects(TriggerEffect left, TriggerEffect right) =>
+        GamepadFeedback.Enqueue(g => g.SetTriggerEffects(left, right));
 
     void IStreamSink.OnPadInfo(PadInfo info) => GamepadFeedback.Enqueue(g => g.SetLightbar(info.Red, info.Green, info.Blue));
 

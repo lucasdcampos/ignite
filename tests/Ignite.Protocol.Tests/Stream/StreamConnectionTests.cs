@@ -119,6 +119,12 @@ public class StreamConnectionTests
                 types.Add(TakionMessage.Parser.ParseFrom(await ReceiveMessageAsync(console, timeout.Token, consoleVerifier)).Type);
             Assert.Equal([PayloadType.Streaminfoack, PayloadType.Controllerconnection], types);
 
+            await console.SendDataAsync(TakionDataType.TriggerEffects, Sequence(24, i => i), timeout.Token);
+            var triggerEffects = Sequence(25, i => i);
+            triggerEffects[1] = 0x21;
+            triggerEffects[2] = 0x26;
+            await console.SendDataAsync(TakionDataType.TriggerEffects, triggerEffects, timeout.Token);
+
             var units = AvTestPackets.EncodeFrame(frame, 3, 1);
             for (var u = 0; u < units.Length; u++)
             {
@@ -149,6 +155,13 @@ public class StreamConnectionTests
         Assert.Equal(frame, received.Frame);
         Assert.Equal(header, received.Header);
         Assert.Equal(48000, sink.Audio!.SampleRate);
+
+        var effects = await sink.TriggerEffects.Reader.ReadAsync(timeout.Token);
+        Assert.Equal(0x21, effects.Left.Type);
+        Assert.Equal(Sequence(10, i => i + 5), effects.Left.Parameters);
+        Assert.Equal(0x26, effects.Right.Type);
+        Assert.Equal(Sequence(10, i => i + 15), effects.Right.Parameters);
+        Assert.False(sink.TriggerEffects.Reader.TryRead(out _));
 
         stream.UpdateController(ControllerState.Idle with { Buttons = ControllerButtons.Cross });
         await consoleTask;
@@ -191,6 +204,9 @@ public class StreamConnectionTests
 
         public AudioFormat? Audio { get; private set; }
 
+        public System.Threading.Channels.Channel<(TriggerEffect Left, TriggerEffect Right)> TriggerEffects { get; } =
+            System.Threading.Channels.Channel.CreateUnbounded<(TriggerEffect, TriggerEffect)>();
+
         public ConcurrentQueue<string> Disconnects { get; } = new();
 
         public void OnStreamInfo(IReadOnlyList<VideoStreamProfile> profiles, AudioFormat audio) => Audio = audio;
@@ -206,9 +222,7 @@ public class StreamConnectionTests
         {
         }
 
-        public void OnTriggerEffects(TriggerEffect left, TriggerEffect right)
-        {
-        }
+        public void OnTriggerEffects(TriggerEffect left, TriggerEffect right) => TriggerEffects.Writer.TryWrite((left, right));
 
         public void OnPadInfo(PadInfo info)
         {
