@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Ignite</AssemblyName>
+    <RootNamespace>Ignite.App</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hexa.NET.ImGui" />
+    <PackageReference Include="Hexa.NET.ImGui.Backends" />
+    <PackageReference Include="Hexa.NET.ImGui.Backends.SDL3" />
+    <PackageReference Include="Hexa.NET.SDL3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ignite.Core/Ignite.Core.csproj" />
+  </ItemGroup>
+
+</Project>

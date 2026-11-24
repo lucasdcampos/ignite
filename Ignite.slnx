@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Ignite.App/Ignite.App.csproj" />
     <Project Path="src/Ignite.Core/Ignite.Core.csproj" />
     <Project Path="src/Ignite.Media/Ignite.Media.csproj" />
     <Project Path="src/Ignite.Protocol/Ignite.Protocol.csproj" />
