@@ -100,10 +100,23 @@ public class RegistrationTests
         {
             _statusLine = statusLine;
             _reason = reason;
-            _udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-            Port = ((IPEndPoint)_udp.Client.LocalEndPoint!).Port;
-            _tcp = new TcpListener(IPAddress.Loopback, Port);
-            _tcp.Start();
+            // UDP and TCP must share a port; some ports are reserved for one protocol on Windows.
+            for (var attempt = 0; ; attempt++)
+            {
+                var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+                var port = ((IPEndPoint)udp.Client.LocalEndPoint!).Port;
+                var tcp = new TcpListener(IPAddress.Loopback, port);
+                try
+                {
+                    tcp.Start();
+                    (_udp, _tcp, Port) = (udp, tcp, port);
+                    break;
+                }
+                catch (SocketException) when (attempt < 20)
+                {
+                    udp.Dispose();
+                }
+            }
         }
 
         public int Port { get; }
