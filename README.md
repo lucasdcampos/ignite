@@ -41,10 +41,6 @@ To use an FFmpeg 9 installed on the system instead, build with
 directory, the usual install locations (winget, scoop, chocolatey, MSYS2, `/usr/lib`...) and
 the `PATH`. Media tests are skipped when no FFmpeg is found.
 
-PSN sign-in needs the OAuth client id and secret of the Remote Play app. Enter them once on
-the account screen (they are saved in your local settings) or set `IGNITE_PSN_CLIENT_ID` and
-`IGNITE_PSN_CLIENT_SECRET`.
-
 ## Using
 
 1. Click **Sign in with PSN**, log in with your email and password in the browser, then copy

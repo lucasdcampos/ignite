@@ -15,8 +15,8 @@ The protocol constant tables (see `docs/protocol/03-rpcrypt.md`) are data requir
 interoperability with the console. They are embedded in `Ignite.Protocol` as a binary
 resource (`Crypto/rpcrypt-tables.bin`).
 
-The OAuth client id/secret of the official Remote Play app are not stored in the repository;
-they are supplied through configuration.
+The public OAuth client id/secret of the official Remote Play app are built in
+(`PsnOAuthOptions.RemotePlayApp`) so PSN sign-in works without configuration.
 
 ## Dependencies
 

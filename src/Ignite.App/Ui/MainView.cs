@@ -25,8 +25,6 @@ internal sealed class MainView : IDisposable
     private const int ClipboardPollMilliseconds = 500;
 
     private string _redirectUrl = "";
-    private string _clientId = "";
-    private string _clientSecret = "";
     private bool _awaitingRedirect;
     private long _lastClipboardCheck;
     private string? _ignoredClipboard;
@@ -108,11 +106,7 @@ internal sealed class MainView : IDisposable
             return;
         }
 
-        var options = _services.PsnOptions;
-        if (options.IsConfigured)
-            DrawSignIn(options);
-        else
-            DrawOAuthClientSetup();
+        DrawSignIn(_services.PsnOptions);
 
         if (ImGui.TreeNode("Enter the account id manually"))
         {
@@ -177,25 +171,6 @@ internal sealed class MainView : IDisposable
         _ignoredClipboard = clipboard;
         _redirectUrl = clipboard;
         _ = RunAsync("Signing in...", CompleteSignInAsync);
-    }
-
-    private void DrawOAuthClientSetup()
-    {
-        ImGui.TextWrapped(
-            "PSN sign-in needs the OAuth client id and secret of the Remote Play app. Enter them once; "
-            + "they are stored only in your local settings.");
-        ImGui.InputText("Client id", ref _clientId, 128);
-        ImGui.InputText("Client secret", ref _clientSecret, 128, ImGuiInputTextFlags.Password);
-        if (ImGui.Button("Save PSN client") && !string.IsNullOrWhiteSpace(_clientId) && !string.IsNullOrWhiteSpace(_clientSecret))
-        {
-            _services.Settings.Save(_services.Settings.Current with
-            {
-                PsnClientId = _clientId.Trim(),
-                PsnClientSecret = _clientSecret.Trim(),
-            });
-            _clientSecret = "";
-            _status = "PSN client saved. You can sign in now.";
-        }
     }
 
     private async Task CompleteSignInAsync()

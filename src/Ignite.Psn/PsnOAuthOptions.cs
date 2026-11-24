@@ -1,8 +1,8 @@
 namespace Ignite.Psn;
 
 /// <summary>
-/// OAuth client of the official Remote Play app (docs/protocol/02-psn-account.md). The id and
-/// secret are not part of the repository and must be supplied by configuration.
+/// OAuth client used for PSN sign-in (docs/protocol/02-psn-account.md). Defaults to the
+/// official Remote Play app's public client; environment variables or settings override it.
 /// </summary>
 public sealed record PsnOAuthOptions(string ClientId, string ClientSecret)
 {
@@ -15,14 +15,20 @@ public sealed record PsnOAuthOptions(string ClientId, string ClientSecret)
     public const string ClientIdVariable = "IGNITE_PSN_CLIENT_ID";
     public const string ClientSecretVariable = "IGNITE_PSN_CLIENT_SECRET";
 
+    /// <summary>Public OAuth client of the official Remote Play app.</summary>
+    public static readonly PsnOAuthOptions RemotePlayApp = new("ba495a24-818c-472b-b12d-ff231c1b5745", "mvaiZkRsAsI1IBkY");
+
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
 
-    /// <summary>Environment variables first, then the given (settings) values.</summary>
+    /// <summary>Environment variables first, then the given (settings) values, then the Remote Play app client.</summary>
     public static PsnOAuthOptions Resolve(string? clientId = null, string? clientSecret = null)
     {
         var fromEnvironment = new PsnOAuthOptions(
             Environment.GetEnvironmentVariable(ClientIdVariable) ?? "",
             Environment.GetEnvironmentVariable(ClientSecretVariable) ?? "");
-        return fromEnvironment.IsConfigured ? fromEnvironment : new PsnOAuthOptions(clientId ?? "", clientSecret ?? "");
+        if (fromEnvironment.IsConfigured)
+            return fromEnvironment;
+        var configured = new PsnOAuthOptions(clientId ?? "", clientSecret ?? "");
+        return configured.IsConfigured ? configured : RemotePlayApp;
     }
 }

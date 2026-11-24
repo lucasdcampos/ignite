@@ -99,7 +99,8 @@ public class PsnOAuthOptionsTests
             Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientIdVariable, null);
             Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientSecretVariable, null);
             Assert.Equal(new PsnOAuthOptions("settings-id", "settings-secret"), PsnOAuthOptions.Resolve("settings-id", "settings-secret"));
-            Assert.False(PsnOAuthOptions.Resolve(null, null).IsConfigured);
+            Assert.Equal(PsnOAuthOptions.RemotePlayApp, PsnOAuthOptions.Resolve(null, null));
+            Assert.True(PsnOAuthOptions.RemotePlayApp.IsConfigured);
 
             Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientIdVariable, "env-id");
             Environment.SetEnvironmentVariable(PsnOAuthOptions.ClientSecretVariable, "env-secret");

@@ -5,12 +5,10 @@ OAuth 2.0 authorization-code flow the official Remote Play app uses.
 
 ## OAuth client
 
-The flow uses the official Remote Play app's OAuth client (a public client id and secret).
-The values are not reproduced here; Ignite reads them from its configuration
-(`PsnOAuthOptions.Resolve`: the `IGNITE_PSN_CLIENT_ID` and `IGNITE_PSN_CLIENT_SECRET`
-environment variables, otherwise the client id and secret the user saves once on the account
-screen, stored in the local settings file). Without them, only the manual account id entry
-works.
+The flow uses the official Remote Play app's OAuth client (a public client id and secret),
+built into Ignite as `PsnOAuthOptions.RemotePlayApp`. The `IGNITE_PSN_CLIENT_ID` and
+`IGNITE_PSN_CLIENT_SECRET` environment variables, or `psnClientId` / `psnClientSecret` in the
+settings file, override it (`PsnOAuthOptions.Resolve`).
 
 Requests to the token endpoint authenticate with HTTP Basic auth using
 `client_id:client_secret`.
