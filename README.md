@@ -7,9 +7,8 @@ The goal is a client that is as simple as the official Remote Play app (sign in,
 PS5, play) but gives you real control over stream quality: resolution, frame rate, codec
 (H.264 / HEVC), HDR and bitrate.
 
-> Status: the full local-network pipeline is implemented and tested against simulated
-> consoles; discovery has been verified against a real PS5. Pairing and streaming still need
-> to be validated on real hardware.
+> Status: early but working. PSN sign-in, discovery, pairing and streaming with video, audio
+> and controller input have been verified on a real PS5 over the local network.
 
 ## Features
 
