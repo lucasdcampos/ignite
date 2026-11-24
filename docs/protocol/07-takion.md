@@ -135,6 +135,12 @@ sequence number.
 Gap ack blocks (4 bytes each) follow when the count is non-zero. The client keeps sent DATA
 chunks in a send buffer and retransmits them until they are acknowledged.
 
+Ignite's choices where the protocol leaves room: unacknowledged chunks are resent every
+200 ms, at most 10 times. Received chunks are treated as complete messages (the console has
+not been seen fragmenting messages to the client). If a gap in received sequence numbers is
+not filled within 500 ms, or a chunk arrives too far ahead of the expected number, delivery
+skips ahead instead of stalling.
+
 ## Authentication of control packets
 
 Once the stream cipher is set, every control packet carries a 4-byte GMAC and a key_pos:
