@@ -55,6 +55,12 @@ do not reference each other. Interfaces that cross boundaries (`IStreamSink`,
   decoded pictures are handed to the render thread, which always presents the newest one.
 - Audio: decoded on the receive thread and pushed into an SDL audio stream; when more than
   80 ms are queued the queue is cleared to keep latency bounded.
+- Frame pacing: the render loop presents with VSync when enabled, and `FrameLimiter` caps it
+  at 1.05 × the display refresh rate (2 × without VSync). The cap matters because some drivers
+  ignore VSync for Direct3D and Vulkan: on a PC with an NVIDIA GTX 1660 and a 144 Hz monitor
+  even a bare SDL window presented about 5000 frames per second through Direct3D 11 (OpenGL
+  was capped at 144), and Ignite burned well over one CPU core. When VSync works, each frame
+  already takes a refresh interval and the limiter never waits.
 - Input: the render loop samples SDL input once per frame and pushes state to the feedback
   sender, which sends at most every 8 ms and at least every 200 ms.
 - Gamepad feedback from the console (rumble, lightbar, adaptive triggers) is queued and

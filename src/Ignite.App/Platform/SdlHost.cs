@@ -16,6 +16,7 @@ internal sealed unsafe class SdlHost : IDisposable
     private const int MinimumHeight = 600;
 
     private readonly ImGuiContextPtr _imgui;
+    private readonly FrameLimiter _limiter = new();
     private bool _vsync;
 
     public SdlHost(string title, int width, int height)
@@ -91,7 +92,7 @@ internal sealed unsafe class SdlHost : IDisposable
 
     public void SetVSync(bool enabled)
     {
-        if (_vsync == enabled && enabled)
+        if (_vsync == enabled)
             return;
         _vsync = enabled;
         SDL.SetRenderVSync(Renderer, enabled ? 1 : 0);
@@ -126,6 +127,17 @@ internal sealed unsafe class SdlHost : IDisposable
         if (screenshotPath is not null)
             SaveScreenshot(screenshotPath);
         SDL.RenderPresent(Renderer);
+        _limiter.Wait(FrameLimiter.MinimumFrameNanoseconds(RefreshRate, _vsync));
+    }
+
+    /// <summary>Refresh rate of the display showing the window, or 0 when unknown.</summary>
+    private float RefreshRate
+    {
+        get
+        {
+            var mode = SDL.GetCurrentDisplayMode(SDL.GetDisplayForWindow(Window));
+            return mode.IsNull ? 0 : mode.RefreshRate;
+        }
     }
 
     public static void OpenUrl(string url) => SDL.OpenURL(url);
