@@ -1,5 +1,6 @@
 using System.Numerics;
 using Hexa.NET.ImGui;
+using Ignite.App.Streaming;
 using Ignite.App.Ui;
 using Ignite.Core.Consoles;
 using Ignite.Core.Storage;
@@ -81,6 +82,34 @@ public sealed unsafe class LauncherRenderTests : IDisposable
         Render(() => InWindow(signIn.Draw));
         forget.Request("PS5", "Living Room");
         Render(() => InWindow(forget.Draw));
+    }
+
+    [Fact]
+    public void StreamControlsAndSettingsDraw()
+    {
+        var panel = new StreamPanel(_services.Settings);
+        var running = _services.Settings.Current;
+        var statistics = new StreamStatistics(59.9, 14.2, 3, "d3d11va (zero-copy)", 1920, 1080, 4);
+        var bottom = new Vector2(640, 600);
+
+        Render(() => StreamToolbar.Draw(fullscreen: false, opacity: 1, out _));
+        Render(() => StreamToolbar.Draw(fullscreen: true, opacity: 0.5f, out _));
+        panel.Open(running);
+        Render(() => panel.Draw(null, running, bottom));
+        var drawn = Render(() => panel.Draw(statistics, running with { Quality = running.Quality with { BitrateKbps = 40000 } }, bottom));
+
+        Assert.True(drawn > 0);
+        Assert.True(panel.Visible);
+        panel.Close();
+        Assert.Equal(0, Render(() => panel.Draw(statistics, running, bottom)));
+    }
+
+    [Fact]
+    public void QualitySummaryNamesEveryValue()
+    {
+        var quality = new Ignite.Core.Settings.StreamQuality(Ignite.Core.Settings.Resolution.P720, 30, Ignite.Protocol.Session.VideoCodec.HevcHdr, 25000);
+
+        Assert.Equal("720p  ·  30 fps  ·  HEVC HDR  ·  25 Mbps", QualityEditor.Describe(quality));
     }
 
     private static void InWindow(Action draw)

@@ -68,7 +68,9 @@ are defined by the lower layer.
   was capped at 144), and Ignite burned well over one CPU core. When VSync works, each frame
   already takes a refresh interval and the limiter never waits.
 - Input: the render loop samples SDL input once per frame and pushes state to the feedback
-  sender, which sends at most every 8 ms and at least every 200 ms.
+  sender, which sends at most every 8 ms and at least every 200 ms. While the stream settings
+  panel has keyboard or gamepad focus the console gets an idle controller, so nothing stays
+  held. The toolbar's PS button holds the PS button for 150 ms (`ButtonPulse`).
 - Gamepad feedback from the console (rumble, lightbar, adaptive triggers) is queued and
   applied on the render thread. Ending a stream discards pending feedback and resets the
   triggers on that thread; closing a gamepad also resets any active effects.
@@ -105,8 +107,21 @@ technical options stay behind "Customize" and "Advanced".
     advanced options. Settings saved by versions that offered 1440p/2160p load as 1080p.
     Disconnects caused by rejected video settings and "in use" errors are explained in plain
     words (`StreamEndMessages`).
-- `Ui/StreamOverlay` draws over the video: the connecting screen, a short "Press F1" hint, the
-  F1 menu (statistics, disconnect) and the console passcode prompt.
+- `Ui/StreamOverlay` draws over the video: the connecting screen, the stream controls, the
+  stream settings and the console passcode prompt.
+  - `StreamToolbar` is a bar at the bottom with fullscreen, the PS button and a settings
+    button. It appears when the stream starts and whenever the mouse moves, and fades out
+    3 s after the mouse rests (`OverlayVisibility`); the mouse cursor hides with it. It never
+    takes keyboard or gamepad focus, so clicking it leaves the controller with the game.
+  - `StreamPanel` (settings button or F1, closed with F1, Escape or its close button) shows
+    the stream's status (picture size and frame rate, bandwidth, latency, decoder, recovered
+    packets, requested quality) and the settings that can change while playing. VSync applies
+    at once. Resolution, frame rate, video format, bitrate and hardware decoding are fixed for a
+    session ([changing the quality](protocol/09-stream-connection.md#changing-the-quality)), so
+    "Apply and restart" saves them and starts a new session to the same console. The console
+    reports "in use" for a few seconds after a session ends, so every stream start retries
+    the session request once per second for up to 20 s (`ConnectRetry`); a restart takes
+    about 10 s. `QualityEditor` draws the same quality controls here and in Settings.
 - Every way a stream ends leads back to the launcher: closing the window while connecting or
   streaming ends the stream instead of quitting (SDL's quit-on-last-window-close is turned
   off; closing the window from the launcher quits), and a stream that ends by itself (console

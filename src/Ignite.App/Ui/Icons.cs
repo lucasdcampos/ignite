@@ -16,9 +16,12 @@ internal static class Icons
     public const string Gem = "\ue242";
     public const string Info = "\ue0f9";
     public const string LogOut = "\ue10e";
+    public const string Maximize = "\ue112";
+    public const string Minimize = "\ue11a";
     public const string Play = "\ue13c";
     public const string Plus = "\ue13d";
     public const string Power = "\ue140";
+    public const string RotateCw = "\ue149";
     public const string Search = "\ue151";
     public const string Settings = "\ue154";
     public const string Share = "";

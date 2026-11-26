@@ -178,6 +178,20 @@ not a DualSense), then start sending input feedback.
 | `CONNECTIONQUALITY` | console → client | Informational |
 | `DISCONNECT` | both | `reason` text; the client sends `"Client Disconnecting"` when it quits |
 
+### Changing the quality
+
+The resolution, frame rate, bitrate, codec and dynamic range are fixed by the launch spec when
+the stream starts. No known message changes them during a session: the console adapts the
+bitrate itself from the [congestion reports](14-congestion.md) and may switch between the
+adaptive streams listed in `STREAMINFO`, but the client cannot request a profile.
+
+To apply new values a client ends the session and starts a new one with another launch spec.
+Right after the end the console still reports Remote Play as in use for several seconds
+([error codes](04-registration.md#error-codes-rp-application-reason)), so the new session
+request has to be retried. Measured on a PS5 (2026-11-26), going from 1280×720 at 60 fps H.264
+to 1920×1080 at 30 fps HEVC took about 9 s from the end of the old stream to the first frame
+of the new one, and the new stream had the requested size and frame rate.
+
 ### Detecting a lost connection
 
 Nothing in the protocol tells the client that the console or the network went away: Takion

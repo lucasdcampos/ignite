@@ -32,6 +32,13 @@ internal static class Widgets
 
     public static void Muted(string text, float size = Theme.BodySize) => Text(text, size, Theme.TextMuted);
 
+    /// <summary>A small bold caption above a control.</summary>
+    public static void Label(string text)
+    {
+        Space(2);
+        Text(text, Theme.SmallSize, Theme.TextMuted, bold: true);
+    }
+
     /// <summary>A single line of text centered in the available width.</summary>
     public static void Centered(string text, float size = Theme.BodySize, Vector4? color = null, bool bold = false)
     {

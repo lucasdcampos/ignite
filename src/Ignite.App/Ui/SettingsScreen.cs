@@ -1,18 +1,12 @@
 using System.Numerics;
 using Hexa.NET.ImGui;
 using Ignite.Core.Settings;
-using Ignite.Protocol.Session;
 
 namespace Ignite.App.Ui;
 
 /// <summary>Quality, display, account and console settings, plus the advanced options.</summary>
 internal sealed class SettingsScreen
 {
-    private static readonly string[] ResolutionNames = ["360p", "540p", "720p", "1080p"];
-    private static readonly string[] FpsNames = ["30 fps", "60 fps"];
-    private static readonly int[] FpsValues = [30, 60];
-    private static readonly string[] CodecNames = ["H.264", "HEVC", "HEVC HDR"];
-
     private readonly AppServices _services;
     private readonly SignInPanel _signIn;
     private readonly ForgetConsoleDialog _forget;
@@ -90,34 +84,11 @@ internal sealed class SettingsScreen
     private void DrawCustomQuality(AppSettings settings)
     {
         var quality = settings.Quality;
-        var resolution = (int)quality.Resolution;
-        var fps = Math.Max(0, Array.IndexOf(FpsValues, quality.Fps));
-        var codec = (int)quality.Codec - 1;
-        var automatic = quality.BitrateKbps is null;
-        var mbps = quality.EffectiveBitrateKbps / 1000;
-
         Widgets.Space(4);
-        Label("Resolution");
-        var changed = Widgets.Segmented("resolution", ResolutionNames, ref resolution);
-        Label("Frame rate");
-        changed |= Widgets.Segmented("fps", FpsNames, ref fps);
-        Label("Video format");
-        changed |= Widgets.Segmented("codec", CodecNames, ref codec);
-        Widgets.Text("HEVC gives a better picture for the same bandwidth. HDR needs an HDR display.", Theme.SmallSize, Theme.TextFaint);
-        Widgets.Space(4);
-        changed |= Widgets.Toggle("Automatic bitrate", "Picks a bitrate that suits the resolution.", ref automatic);
-        if (!automatic)
-        {
-            ImGui.SetNextItemWidth(Widgets.Fill);
-            changed |= ImGui.SliderInt("##bitrate", ref mbps, 2, 100, "%d Mbps");
-        }
-
-        var updated = new StreamQuality((Resolution)resolution, FpsValues[fps], (VideoCodec)(codec + 1), automatic ? null : mbps * 1000);
-        Widgets.Text($"Uses up to {updated.EffectiveBitrateKbps / 1000} Mbps of your network.", Theme.SmallSize, Theme.TextMuted);
-        if (changed)
+        if (QualityEditor.Draw(ref quality))
         {
             _showCustom = true;
-            Save(settings with { Quality = updated });
+            Save(settings with { Quality = quality });
         }
     }
 
@@ -159,7 +130,7 @@ internal sealed class SettingsScreen
 
     private static void DrawControls()
     {
-        Row("F1", "Show or hide the stream menu (statistics and disconnect)");
+        Row("F1", "Show or hide the stream settings (status, quality, VSync, disconnect)");
         Row("F11", "Switch fullscreen");
         Widgets.Space(4);
         Widgets.Text("Without a controller, the keyboard works as one:", Theme.SmallSize, Theme.TextMuted, bold: true);
@@ -181,12 +152,12 @@ internal sealed class SettingsScreen
         var maxLoss = (float)settings.MaxReportedPacketLoss * 100;
         var ffmpegPath = settings.FfmpegPath ?? "";
 
-        Label("Highest packet loss reported to the console");
+        Widgets.Label("Highest packet loss reported to the console");
         ImGui.SetNextItemWidth(Widgets.Fill);
         var changed = ImGui.SliderFloat("##loss", ref maxLoss, 0, 20, "%.0f %%");
         Widgets.Text("Lower values keep the quality up on unstable networks; higher values let the console lower its bitrate sooner.", Theme.SmallSize, Theme.TextFaint);
 
-        Label("FFmpeg folder (optional, needs a restart)");
+        Widgets.Label("FFmpeg folder (optional, needs a restart)");
         ImGui.SetNextItemWidth(Widgets.Fill);
         changed |= ImGui.InputTextWithHint("##ffmpeg", "Use the bundled FFmpeg", ref ffmpegPath, 512);
         Widgets.Text(_services.FfmpegVersion is { } version ? $"FFmpeg {version} loaded." : "FFmpeg is not loaded.", Theme.SmallSize, Theme.TextFaint);
@@ -206,12 +177,6 @@ internal sealed class SettingsScreen
     }
 
     private void Save(AppSettings settings) => _services.Settings.Save(settings);
-
-    private static void Label(string text)
-    {
-        Widgets.Space(2);
-        Widgets.Text(text, Theme.SmallSize, Theme.TextMuted, bold: true);
-    }
 
     private static void Row(string key, string description)
     {

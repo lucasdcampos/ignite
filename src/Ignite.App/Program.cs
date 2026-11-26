@@ -1,3 +1,4 @@
+using System.Net;
 using Hexa.NET.ImGui;
 using Hexa.NET.SDL3;
 using Ignite.App.Audio;
@@ -6,13 +7,16 @@ using Ignite.App.Platform;
 using Ignite.App.Streaming;
 using Ignite.App.Ui;
 using Ignite.App.Video;
+using Ignite.Core.Consoles;
 using Ignite.Core.Storage;
+using Ignite.Protocol.Input;
 
 namespace Ignite.App;
 
 internal static class Program
 {
     private const int ScreenshotFrame = 90;
+    private const double PsButtonSeconds = 0.15;
 
     private static int Main()
     {
@@ -26,23 +30,39 @@ internal static class Program
         using var gamepad = new GamepadInput();
         using var haptics = new HapticsOutput();
         using var shell = new Shell(services);
-        var overlay = new StreamOverlay();
+        var overlay = new StreamOverlay(services.Settings);
+        var psButton = new ButtonPulse(ControllerButtons.PS, PsButtonSeconds);
         StreamController? stream = null;
+        (IPAddress Address, StoredConsole Console)? playing = null;
         var fullscreen = false;
 
-        shell.PlayRequested += (entry, console) =>
+        void StartStream(IPAddress address, StoredConsole console, bool restart)
         {
-            if (entry.Address is null)
-                return;
             stream?.DisposeAsync().AsTask().GetAwaiter().GetResult();
             gamepad.ResetFeedback();
             haptics.SetEnabled(false);
             presenter.Clear();
             stream = new StreamController(presenter, haptics);
-            stream.Start(services.Tables, entry.Address, console, services.Settings.Current, gamepad.IsDualSense || !gamepad.Connected);
+            stream.Start(services.Tables, address, console, services.Settings.Current, gamepad.IsDualSense || !gamepad.Connected, restart);
+            playing = (address, console);
+            if (restart)
+                return;
             fullscreen = services.Settings.Current.Fullscreen;
             host.SetFullscreen(fullscreen);
+        }
+
+        shell.PlayRequested += (entry, console) =>
+        {
+            if (entry.Address is not null)
+                StartStream(entry.Address, console, restart: false);
         };
+        overlay.RestartRequested += () =>
+        {
+            if (playing is { } current)
+                StartStream(current.Address, current.Console, restart: true);
+        };
+        overlay.FullscreenRequested += () => host.SetFullscreen(fullscreen = !fullscreen);
+        overlay.PsButtonPressed += () => psButton.Press(ImGui.GetTime());
 
         gamepad.Refresh();
         var screenshotPath = Environment.GetEnvironmentVariable("IGNITE_SCREENSHOT");
@@ -75,7 +95,7 @@ internal static class Program
                 if (type == SDLEventType.KeyDown && e.Key.Repeat == 0)
                 {
                     if (e.Key.Scancode == SDLScancode.F1 && streaming)
-                        overlay.ToggleMenu();
+                        overlay.ToggleSettings();
                     if (e.Key.Scancode == SDLScancode.F11)
                         host.SetFullscreen(fullscreen = !fullscreen);
                 }
@@ -98,9 +118,10 @@ internal static class Program
                 presenter.Draw(width, height);
                 while (stream!.GamepadFeedback.TryDequeue(out var feedback))
                     feedback(gamepad);
-                if (!ImGui.GetIO().WantCaptureKeyboard)
-                    stream.UpdateInput(gamepad.Read(KeyboardInput.Read()));
-                overlay.Draw(stream);
+                // While the stream settings have keyboard or gamepad focus the console sees an idle controller, so nothing stays held.
+                var input = ImGui.GetIO().WantCaptureKeyboard ? ControllerState.Idle : gamepad.Read(KeyboardInput.Read());
+                stream.UpdateInput(psButton.Apply(input, ImGui.GetTime()));
+                overlay.Draw(stream, fullscreen);
             }
             else
             {

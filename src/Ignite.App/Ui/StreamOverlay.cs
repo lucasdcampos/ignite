@@ -1,43 +1,61 @@
 using System.Numerics;
 using Hexa.NET.ImGui;
 using Ignite.App.Streaming;
+using Ignite.Core.Settings;
 
 namespace Ignite.App.Ui;
 
-/// <summary>Everything drawn over the video: the connecting screen, the F1 menu and the passcode prompt.</summary>
+/// <summary>Everything drawn over the video: the connecting screen, the stream controls and settings, and the passcode prompt.</summary>
 internal sealed class StreamOverlay
 {
-    private const double HintSeconds = 5;
     private const string PasscodeId = "passcode";
 
+    private readonly OverlayVisibility _controls = new();
+    private readonly StreamPanel _panel;
     private StreamController? _stream;
-    private double _streamingSince = -1;
-    private bool _menuVisible;
+    private bool _toolbarHovered;
     private string _passcode = "";
 
-    public void ToggleMenu() => _menuVisible = !_menuVisible;
-
-    public void Draw(StreamController stream)
+    public StreamOverlay(SettingsStore settings)
     {
+        _panel = new StreamPanel(settings);
+        _panel.RestartRequested += () => RestartRequested?.Invoke();
+        _panel.DisconnectRequested += () =>
+        {
+            _panel.Close();
+            _ = _stream?.StopAsync();
+        };
+    }
+
+    public event Action? FullscreenRequested;
+
+    public event Action? PsButtonPressed;
+
+    /// <summary>The user applied settings that need a new session.</summary>
+    public event Action? RestartRequested;
+
+    public void ToggleSettings()
+    {
+        if (_panel.Visible)
+            _panel.Close();
+        else if (_stream is { State: StreamState.Streaming } stream)
+            _panel.Open(stream.StartedWith);
+    }
+
+    public void Draw(StreamController stream, bool fullscreen)
+    {
+        var now = ImGui.GetTime();
         if (!ReferenceEquals(stream, _stream))
         {
             _stream = stream;
-            _streamingSince = -1;
-            _menuVisible = false;
+            _panel.Close();
+            _controls.Activity(now);
         }
 
         if (stream.State == StreamState.Connecting)
-        {
             DrawConnecting(stream);
-        }
         else
-        {
-            if (_streamingSince < 0)
-                _streamingSince = ImGui.GetTime();
-            DrawHint();
-            if (_menuVisible)
-                DrawMenu(stream);
-        }
+            DrawControls(stream, fullscreen, now);
 
         DrawPasscode(stream);
     }
@@ -69,54 +87,36 @@ internal sealed class StreamOverlay
         ImGui.End();
     }
 
-    private unsafe void DrawHint()
+    /// <summary>The toolbar shows while the mouse moves; the cursor hides with it.</summary>
+    private void DrawControls(StreamController stream, bool fullscreen, double now)
     {
-        var elapsed = ImGui.GetTime() - _streamingSince;
-        if (elapsed > HintSeconds || _menuVisible)
-            return;
-        var alpha = (float)Math.Clamp(HintSeconds - elapsed, 0, 1);
+        if (ImGui.GetIO().MouseDelta != Vector2.Zero || ImGui.IsAnyMouseDown())
+            _controls.Activity(now);
+
         var viewport = ImGui.GetMainViewport();
-        var drawList = ImGui.GetForegroundDrawList(viewport);
-        const string text = "Press F1 for the stream menu";
-        ImGui.PushFont(Theme.SemiBold, Theme.BodySize);
-        var size = ImGui.CalcTextSize(text);
-        ImGui.PopFont();
-        var padding = Theme.Dp(20, 12);
-        var min = new Vector2(viewport.Pos.X + (viewport.Size.X - size.X) / 2 - padding.X, viewport.Pos.Y + Theme.Dp(24));
-        var max = min + size + padding * 2;
-        drawList.AddRectFilled(min, max, Theme.U32(Theme.WithAlpha(Theme.SurfaceRaised, 0.9f * alpha)), (max.Y - min.Y) / 2);
-        drawList.AddText(Theme.SemiBold.Handle, Theme.Dp(Theme.BodySize), min + padding, Theme.U32(Theme.WithAlpha(Theme.Text, alpha)), text);
-    }
+        var panelBottom = viewport.WorkPos + new Vector2(viewport.WorkSize.X / 2, viewport.WorkSize.Y - Theme.Dp(StreamToolbar.Clearance + 14));
+        _panel.Draw(stream.Statistics(), stream.StartedWith, panelBottom);
 
-    private void DrawMenu(StreamController stream)
-    {
-        ImGui.SetNextWindowPos(Theme.Dp(20, 20));
-        ImGui.SetNextWindowSize(new Vector2(Theme.Dp(380), 0));
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, Theme.WithAlpha(Theme.SurfaceRaised, 0.94f));
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.Dp(22, 20));
-        ImGui.Begin("stream-menu", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoSavedSettings);
-        ImGui.PopStyleVar();
-        ImGui.PopStyleColor();
-
-        Widgets.Heading("Stream");
-        if (stream.Statistics() is { } stats)
+        var opacity = _controls.Opacity(now, _panel.Visible || _toolbarHovered);
+        if (opacity <= 0)
         {
-            Stat("Picture", $"{stats.Width} x {stats.Height}  ·  {stats.Fps:0} fps");
-            Stat("Bandwidth", $"{stats.VideoMbps:0.0} Mbps");
-            Stat("Latency", $"{stats.RttMs} ms");
-            Stat("Decoder", stats.Decoder ?? "-");
-            Stat("Recovered packets", stats.FecRecoveries.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            _toolbarHovered = false;
+            ImGui.SetMouseCursor(ImGuiMouseCursor.None);
+            return;
         }
 
-        Widgets.Space(4);
-        if (Widgets.Button($"{Icons.X}  Disconnect", ButtonKind.Danger, Widgets.Fill))
+        switch (StreamToolbar.Draw(fullscreen, opacity, out _toolbarHovered))
         {
-            _ = stream.StopAsync();
-            _menuVisible = false;
+            case ToolbarAction.Fullscreen:
+                FullscreenRequested?.Invoke();
+                break;
+            case ToolbarAction.PsButton:
+                PsButtonPressed?.Invoke();
+                break;
+            case ToolbarAction.Settings:
+                ToggleSettings();
+                break;
         }
-
-        Widgets.Text("F1: hide this menu  ·  F11: fullscreen", Theme.SmallSize, Theme.TextFaint);
-        ImGui.End();
     }
 
     private void DrawPasscode(StreamController stream)
@@ -152,12 +152,5 @@ internal sealed class StreamOverlay
         }
 
         ImGui.EndPopup();
-    }
-
-    private static void Stat(string label, string value)
-    {
-        Widgets.Text(label, Theme.SmallSize, Theme.TextMuted);
-        ImGui.SameLine(Theme.Dp(170));
-        Widgets.Text(value, Theme.SmallSize, bold: true);
     }
 }

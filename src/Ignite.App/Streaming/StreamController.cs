@@ -32,6 +32,10 @@ internal sealed record StreamStatistics(double Fps, double VideoMbps, long FecRe
 /// </summary>
 internal sealed class StreamController : IStreamSink, IAsyncDisposable
 {
+    // About 7 s were seen on a PS5 after a clean disconnect; the docs mention up to 15 s.
+    private static readonly TimeSpan InUseTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan InUseRetryInterval = TimeSpan.FromSeconds(1);
+
     private readonly VideoPresenter _presenter;
     private readonly HapticsOutput _haptics;
     private readonly Channel<(byte[] Frame, byte[]? Header)> _frames =
@@ -65,6 +69,9 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     public string? Message { get; private set; }
 
+    /// <summary>The settings this stream was started with.</summary>
+    public AppSettings StartedWith { get; private set; } = new();
+
     public bool IsStopping => _stop.IsCancellationRequested;
 
     public bool PasscodeRequested => _passcodeRequest is { Task.IsCompleted: false };
@@ -74,10 +81,12 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     /// <summary>Gamepad feedback from the console, applied by the UI thread.</summary>
     public ConcurrentQueue<Action<Input.GamepadInput>> GamepadFeedback { get; } = new();
 
-    public void Start(RpCryptTables tables, IPAddress address, StoredConsole console, AppSettings settings, bool dualSense)
+    /// <param name="restart">The previous stream was ended to apply new settings.</param>
+    public void Start(RpCryptTables tables, IPAddress address, StoredConsole console, AppSettings settings, bool dualSense, bool restart = false)
     {
         State = StreamState.Connecting;
-        Message = $"Connecting to {console.Nickname}...";
+        Message = restart ? "Applying the new settings..." : $"Connecting to {console.Nickname}...";
+        StartedWith = settings;
         _codec = settings.Quality.Codec == VideoCodec.H264 ? VideoCodecKind.H264 : VideoCodecKind.Hevc;
         _hardwareDecoding = settings.HardwareDecoding && VideoDecoder.SupportsHardware(_codec);
         var options = settings.Quality.ToStreamOptions(dualSense, settings.MaxReportedPacketLoss);
@@ -213,8 +222,12 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     {
         try
         {
-            _session = await RemotePlaySession.ConnectAsync(
-                tables, address, console.ToCredentials(), options, this, RequestPasscodeAsync, _stop.Token);
+            _session = await ConnectRetry.WhileInUseAsync(
+                token => RemotePlaySession.ConnectAsync(tables, address, console.ToCredentials(), options, this, RequestPasscodeAsync, token),
+                InUseTimeout,
+                InUseRetryInterval,
+                () => Message = "Waiting for your PS5 to become available...",
+                _stop.Token);
             State = StreamState.Streaming;
             Message = null;
             var reason = await _session.WaitForEndAsync();
