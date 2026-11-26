@@ -179,6 +179,26 @@ network, over a VPN, were confirmed on 2026-11-26, so the console accepts the re
 in the `Host` header of authenticated requests. Not yet verified: waking the console through
 the relay.
 
+### Watching a shared console
+
+The sharing computer can show the friend's stream in its own Ignite, without input, for the
+console's owner to watch. The console takes only one Remote Play session at a time, so the
+picture can only come from the friend's session, and nothing on the relay can decrypt it on
+its own.
+
+- The console's control messages, STREAMINFO included, are authenticated but not encrypted
+  ([Takion](protocol/07-takion.md#authentication-of-control-packets)), so the relay reads the
+  stream's resolutions, codec headers and audio format as they pass.
+- Video and audio need the console's GKCrypt instance (index 3). The friend's Ignite gives
+  the relay only that instance's key material, which cannot be used to send as the client
+  ([one direction only](protocol/08-stream-crypto.md#one-direction-only)).
+- `Ignite.Protocol/StreamObserver` follows one stream connection from the console's side of
+  the path: it caches STREAMINFO, ends on DISCONNECT and, with the key and an attached sink,
+  verifies, decrypts in place and reassembles AV packets with the same receivers as the
+  client. While nobody watches it only tracks key positions, because the 32 bits on the
+  wire cannot be resolved after a gap of 2 GiB or more. A sink that joins a running stream,
+  or loses frames, needs a key frame, which the observer reports.
+
 ## Testing approach
 
 - Protocol code is tested with known-answer vectors produced by a reference implementation

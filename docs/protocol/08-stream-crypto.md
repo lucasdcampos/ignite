@@ -98,6 +98,14 @@ Note the two different constants (45000 for the index, 44910 for the IV offset);
 observed values. Packets can arrive slightly out of order, so an implementation caches the
 current key and computes older ones on demand rather than discarding them.
 
+### One direction only
+
+An instance is fully defined by its `key_base` and `iv` (32 bytes). Whoever has them can
+decrypt and verify that direction, but cannot compute the other instance: both are derived
+from the ECDH secret, which never leaves the client. Ignite relies on this to let a relay
+watch what the console sends without being able to send as the client
+([watching a shared console](../architecture.md#watching-a-shared-console)).
+
 ## Test vectors
 
 Unit tests must cover: key/IV derivation for indices 2 and 3 from a fixed secret and

@@ -81,6 +81,12 @@ public sealed class StreamConnection : ITakionHandler, IVideoReceiverSink, IAudi
         }
     }
 
+    /// <summary>
+    /// Key material of the console's cipher. It lets an observer on the path decrypt what the
+    /// console sends, but not send as this client (docs/architecture.md#watching-a-shared-console).
+    /// </summary>
+    public byte[] ExportConsoleKey() => (_remoteCrypt ?? throw new InvalidOperationException("The stream cipher is not set yet.")).ExportKeyMaterial();
+
     public void UpdateController(in ControllerState state) => _feedback?.Update(state);
 
     public Task RequestKeyFrameAsync(CancellationToken cancellationToken = default) =>

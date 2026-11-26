@@ -53,6 +53,30 @@ public class StreamCryptoTests
     }
 
     [Fact]
+    public void FromKeyMaterial_RecreatesTheExportedInstance()
+    {
+        using var original = new GkCrypt(GkCrypt.RemoteIndex, HandshakeKey, Secret);
+        var material = original.ExportKeyMaterial();
+        using var copy = GkCrypt.FromKeyMaterial(material);
+
+        Assert.Equal(Hex("2e7e47c3446bd891a5fc2e800e5629b5cc029297942539943354c44e8602d212"), material);
+        var expected = Data.ToArray();
+        var actual = Data.ToArray();
+        original.Transform(45017, expected);
+        copy.Transform(45017, actual);
+        Assert.Equal(expected, actual);
+        var expectedGmac = new byte[GkCrypt.GmacSize];
+        var actualGmac = new byte[GkCrypt.GmacSize];
+        original.ComputeGmac(90001, Data, expectedGmac);
+        copy.ComputeGmac(90001, Data, actualGmac);
+        Assert.Equal(expectedGmac, actualGmac);
+    }
+
+    [Fact]
+    public void FromKeyMaterial_RejectsWrongSize() =>
+        Assert.Throws<ArgumentException>(() => GkCrypt.FromKeyMaterial(new byte[16]));
+
+    [Fact]
     public void GenerateKeystream_MatchesReference()
     {
         using var crypt = new GkCrypt(GkCrypt.LocalIndex, HandshakeKey, Secret);

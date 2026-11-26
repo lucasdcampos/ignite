@@ -14,6 +14,9 @@ public sealed class GkCrypt : IDisposable
     public const byte LocalIndex = 2;
     public const byte RemoteIndex = 3;
 
+    /// <summary>Size of the key base followed by the IV, everything one instance needs.</summary>
+    public const int KeyMaterialSize = 2 * BlockSize;
+
     private const ulong GmacKeyRefreshKeyPos = 45000;
     private const ulong GmacKeyRefreshIvOffset = 44910;
 
@@ -26,18 +29,16 @@ public sealed class GkCrypt : IDisposable
     private GHash _gmacHash;
 
     public GkCrypt(byte index, ReadOnlySpan<byte> handshakeKey, ReadOnlySpan<byte> ecdhSecret)
+        : this(Derive(index, handshakeKey, ecdhSecret))
     {
-        Span<byte> data = stackalloc byte[3 + handshakeKey.Length + 2];
-        data[0] = 1;
-        data[1] = index;
-        data[2] = 0;
-        handshakeKey.CopyTo(data[3..]);
-        data[^2] = 1;
-        data[^1] = 0;
-        var derived = HMACSHA256.HashData(ecdhSecret, data);
+    }
 
-        KeyBase = derived[..BlockSize];
-        _iv = derived[BlockSize..];
+    private GkCrypt(ReadOnlySpan<byte> keyMaterial)
+    {
+        if (keyMaterial.Length != KeyMaterialSize)
+            throw new ArgumentException($"Key material must be {KeyMaterialSize} bytes.", nameof(keyMaterial));
+        KeyBase = keyMaterial[..BlockSize].ToArray();
+        _iv = keyMaterial[BlockSize..].ToArray();
         _streamAes = Aes.Create();
         _streamAes.Key = KeyBase;
 
@@ -48,6 +49,12 @@ public sealed class GkCrypt : IDisposable
     internal byte[] KeyBase { get; }
     internal ReadOnlySpan<byte> Iv => _iv;
     internal ReadOnlySpan<byte> GmacKeyBase => _gmacKeyBase;
+
+    /// <summary>Recreates an instance from <see cref="ExportKeyMaterial"/> without the ECDH secret it came from.</summary>
+    public static GkCrypt FromKeyMaterial(ReadOnlySpan<byte> keyMaterial) => new(keyMaterial);
+
+    /// <summary>The key base and IV of this instance. It covers one direction only: the other instance cannot be derived from it.</summary>
+    public byte[] ExportKeyMaterial() => [.. KeyBase, .. _iv];
 
     /// <summary>XORs <paramref name="data"/> with the keystream starting at <paramref name="keyPos"/>.</summary>
     public void Transform(ulong keyPos, Span<byte> data)
@@ -105,6 +112,18 @@ public sealed class GkCrypt : IDisposable
         for (var i = 0; i < output.Length / BlockSize; i++)
             CounterAdd(_iv, firstBlock + (ulong)i, output.Slice(i * BlockSize, BlockSize));
         _streamAes.EncryptEcb(output, output, PaddingMode.None);
+    }
+
+    private static byte[] Derive(byte index, ReadOnlySpan<byte> handshakeKey, ReadOnlySpan<byte> ecdhSecret)
+    {
+        Span<byte> data = stackalloc byte[3 + handshakeKey.Length + 2];
+        data[0] = 1;
+        data[1] = index;
+        data[2] = 0;
+        handshakeKey.CopyTo(data[3..]);
+        data[^2] = 1;
+        data[^1] = 0;
+        return HMACSHA256.HashData(ecdhSecret, data);
     }
 
     // Treats the base as a little-endian 128-bit integer.
