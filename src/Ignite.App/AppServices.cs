@@ -2,6 +2,7 @@ using Ignite.Core.Account;
 using Ignite.Core.Consoles;
 using Ignite.Core.Settings;
 using Ignite.Core.Storage;
+using Ignite.Core.Updates;
 using Ignite.Media;
 using Ignite.Protocol.Crypto;
 using Ignite.Psn;
@@ -11,9 +12,10 @@ namespace Ignite.App;
 /// <summary>Application-wide services built at start-up.</summary>
 internal sealed class AppServices : IAsyncDisposable
 {
-    public AppServices(AppPaths paths)
+    public AppServices(AppPaths paths, IUpdateFeed updates)
     {
         Paths = paths;
+        Updater = new AppUpdater(updates);
         Settings = new SettingsStore(Paths);
         Consoles = new ConsoleRegistry(Paths);
         Account = new AccountStore(Paths);
@@ -41,6 +43,8 @@ internal sealed class AppServices : IAsyncDisposable
 
     public ConsoleSharing Sharing { get; } = new();
 
+    public AppUpdater Updater { get; }
+
     public RpCryptTables Tables { get; } = RpCryptTables.Default;
 
     public string? FfmpegVersion { get; }
@@ -58,6 +62,7 @@ internal sealed class AppServices : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         Sharing.Dispose();
+        Updater.Dispose();
         return Browser.DisposeAsync();
     }
 }

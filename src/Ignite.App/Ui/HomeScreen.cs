@@ -2,6 +2,7 @@ using System.Net;
 using System.Numerics;
 using Hexa.NET.ImGui;
 using Ignite.Core.Consoles;
+using Ignite.Core.Updates;
 using Ignite.Protocol.Discovery;
 using Ignite.Relay;
 
@@ -64,6 +65,7 @@ internal sealed class HomeScreen
         if (_wakeJob.Error is { } error && Widgets.Banner("wake-error", Icons.CircleAlert, $"Could not wake the console: {error}", Theme.Danger, "Dismiss"))
             _wakeJob.ClearError();
         DrawSharingBanners(entries);
+        DrawUpdateBanner();
 
         var found = entries.FirstOrDefault(e => !e.Registered && e.State == ConsoleState.Ready);
         if (found is not null && Widgets.Banner("found", Icons.Sparkles, $"New PS5 found on your network: {found.Name}", Theme.Accent, "Pair"))
@@ -85,6 +87,30 @@ internal sealed class HomeScreen
             && Widgets.Banner("watch", Icons.Eye, $"Your friend is playing on {name}. You can watch without taking part.", Theme.Success, "Watch"))
         {
             WatchRequested?.Invoke(session, name);
+        }
+    }
+
+    private void DrawUpdateBanner()
+    {
+        var updater = _services.Updater;
+        var version = updater.AvailableVersion;
+        switch (updater.State)
+        {
+            case UpdateState.Available:
+                if (Widgets.Banner("update", Icons.Download, $"Ignite {version} is available.", Theme.Accent, "Download"))
+                    updater.Download();
+                break;
+            case UpdateState.Downloading:
+                Widgets.Banner("update", Icons.Download, $"Downloading Ignite {version}... {updater.Progress}%", Theme.Accent);
+                break;
+            case UpdateState.Ready:
+                if (Widgets.Banner("update", Icons.RotateCw, $"Ignite {version} is ready. Restart now, or it installs the next time Ignite starts.", Theme.Success, "Restart now"))
+                    updater.RequestInstall();
+                break;
+            case UpdateState.Failed:
+                if (Widgets.Banner("update", Icons.CircleAlert, $"Could not download Ignite {version}: {updater.Error}", Theme.Danger, "Try again"))
+                    updater.Download();
+                break;
         }
     }
 

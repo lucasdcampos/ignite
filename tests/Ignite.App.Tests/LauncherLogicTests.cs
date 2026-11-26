@@ -117,7 +117,7 @@ public sealed class LauncherLogicTests : IDisposable
     public async Task AppServices_NeedsSetupUntilCompletedOrAlreadyConfigured()
     {
         var paths = new AppPaths(_directory);
-        await using (var fresh = new AppServices(paths))
+        await using (var fresh = new AppServices(paths, new FakeUpdateFeed()))
         {
             Assert.True(fresh.NeedsSetup);
             fresh.Account.Save(PsnAccountId.FromUserId(1));
@@ -128,7 +128,7 @@ public sealed class LauncherLogicTests : IDisposable
             fresh.Settings.Save(fresh.Settings.Current with { SetupCompleted = true });
         }
 
-        await using var reloaded = new AppServices(paths);
+        await using var reloaded = new AppServices(paths, new FakeUpdateFeed());
         Assert.False(reloaded.NeedsSetup);
         Assert.Equal(QualityPreset.Balanced, QualityPresets.Match(reloaded.Settings.Current.Quality));
     }

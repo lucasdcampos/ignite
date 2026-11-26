@@ -4,6 +4,7 @@ using Ignite.App.Streaming;
 using Ignite.App.Ui;
 using Ignite.Core.Consoles;
 using Ignite.Core.Storage;
+using Ignite.Core.Updates;
 using Ignite.Protocol;
 using Ignite.Protocol.Discovery;
 
@@ -14,6 +15,7 @@ public sealed unsafe class LauncherRenderTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "ignite-ui-tests-" + Guid.NewGuid().ToString("N"));
     private readonly ImGuiContextPtr _context;
+    private readonly FakeUpdateFeed _updates = new();
     private readonly AppServices _services;
 
     public LauncherRenderTests()
@@ -28,7 +30,7 @@ public sealed unsafe class LauncherRenderTests : IDisposable
         io.BackendFlags |= ImGuiBackendFlags.RendererHasTextures;
         Theme.LoadFonts(io);
         Theme.Apply(1.5f);
-        _services = new AppServices(new AppPaths(_directory));
+        _services = new AppServices(new AppPaths(_directory), _updates);
     }
 
     public void Dispose()
@@ -61,6 +63,35 @@ public sealed unsafe class LauncherRenderTests : IDisposable
 
         _services.Sharing.Share(new ConsoleEntry("PS5", "Living Room", null, ConsoleState.Unknown, true, null, DateTimeOffset.MinValue));
         Assert.NotNull(_services.Sharing.Error);
+        Render(() => shell.Draw(null));
+    }
+
+    [Fact]
+    public void HomeScreenDrawsEveryUpdateStep()
+    {
+        _updates.CurrentVersion = "1.0.0";
+        _updates.Newer = "1.1.0";
+        var download = new TaskCompletionSource();
+        _updates.Download = download.Task;
+        _services.Settings.Save(_services.Settings.Current with { SetupCompleted = true });
+        using var shell = new Shell(_services);
+        var updater = _services.Updater;
+
+        updater.Start();
+        Assert.Equal(UpdateState.Available, updater.State);
+        Render(() => shell.Draw(null));
+
+        updater.Download();
+        Assert.Equal(UpdateState.Downloading, updater.State);
+        Render(() => shell.Draw(null));
+
+        download.SetException(new IOException("disk full"));
+        Assert.Equal(UpdateState.Failed, updater.State);
+        Render(() => shell.Draw(null));
+
+        _updates.Download = Task.CompletedTask;
+        updater.Download();
+        Assert.Equal(UpdateState.Ready, updater.State);
         Render(() => shell.Draw(null));
     }
 

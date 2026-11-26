@@ -21,7 +21,8 @@ internal static class Widgets
     {
         ImGui.PushFont(bold ? Theme.SemiBold : Theme.Regular, size);
         ImGui.PushStyleColor(ImGuiCol.Text, color ?? Theme.Text);
-        ImGui.TextWrapped(text);
+        // TextWrapped takes a printf format, so a lone % would be swallowed.
+        ImGui.TextWrapped(text.Contains('%') ? text.Replace("%", "%%") : text);
         ImGui.PopStyleColor();
         ImGui.PopFont();
     }

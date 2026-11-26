@@ -43,6 +43,8 @@ internal sealed class SettingsScreen
         Section("Consoles", DrawConsoles);
         Section("While playing", DrawControls);
         Section("Advanced", DrawAdvanced);
+        var version = _services.Updater.CurrentVersion is { } current ? $"Ignite {current}" : "Ignite development build (updates are off)";
+        Widgets.Text(version, Theme.SmallSize, Theme.TextFaint);
         Widgets.Text("Ignite is not affiliated with or endorsed by Sony Interactive Entertainment.", Theme.SmallSize, Theme.TextFaint);
 
         _forget.Draw();

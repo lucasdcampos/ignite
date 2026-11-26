@@ -21,7 +21,8 @@
 
     <IgniteFfmpegName>$(IgniteFfmpegBuild)-$(IgniteFfmpegPlatform)-lgpl-shared-9.0</IgniteFfmpegName>
     <IgniteFfmpegUrl>https://github.com/BtbN/FFmpeg-Builds/releases/download/$(IgniteFfmpegRelease)/$(IgniteFfmpegName).$(IgniteFfmpegExtension)</IgniteFfmpegUrl>
-    <IgniteFfmpegCache>$([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.LocalApplicationData)), 'Ignite', 'build-cache'))</IgniteFfmpegCache>
+    <!-- Not under %LOCALAPPDATA%\Ignite: that is where the installer puts the app. -->
+    <IgniteFfmpegCache>$([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.LocalApplicationData)), 'IgniteBuildCache'))</IgniteFfmpegCache>
     <IgniteFfmpegRoot>$(IgniteFfmpegCache)/$(IgniteFfmpegName)</IgniteFfmpegRoot>
     <IgniteFfmpegLibraries Condition="'$(IgniteFfmpegPlatform)' == 'win64'">$(IgniteFfmpegRoot)/bin/*.dll</IgniteFfmpegLibraries>
     <IgniteFfmpegLibraries Condition="'$(IgniteFfmpegPlatform)' == 'linux64'">$(IgniteFfmpegRoot)/lib/*.so*</IgniteFfmpegLibraries>

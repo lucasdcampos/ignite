@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="#features">Features</a> ·
+  <a href="#download">Download</a> ·
   <a href="#building">Building</a> ·
   <a href="#documentation">Documentation</a> ·
   <a href="#license">License</a>
@@ -27,6 +28,16 @@ quality.
 - Hardware video decoding (D3D11VA on Windows, VAAPI on Linux) with software fallback; H.264 on
   Windows is decoded in software, since D3D11VA cannot handle the PS5's H.264 slices
 - DualSense haptics and adaptive triggers, other SDL gamepads, keyboard fallback
+
+## Download
+
+Get the latest version from [Releases](https://github.com/lucasdcampos/ignite/releases/latest):
+
+- Windows: `Ignite-win-x64-Setup.exe` installs Ignite for your user, no administrator rights
+  needed. Windows may warn that the publisher is unknown; choose "More info", then "Run anyway".
+- Linux: download the `.AppImage`, make it executable and run it.
+
+Ignite checks for new versions when it starts and asks before downloading one.
 
 ## Building
 

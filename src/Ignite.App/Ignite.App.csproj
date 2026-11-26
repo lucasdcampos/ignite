@@ -17,6 +17,7 @@
     <PackageReference Include="Hexa.NET.ImGui.Backends" />
     <PackageReference Include="Hexa.NET.ImGui.Backends.SDL3" />
     <PackageReference Include="Hexa.NET.SDL3" />
+    <PackageReference Include="Velopack" />
     <PackageReference Include="Vortice.Direct3D11" />
   </ItemGroup>
 

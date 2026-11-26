@@ -9,7 +9,9 @@ using Ignite.App.Ui;
 using Ignite.App.Video;
 using Ignite.Core.Consoles;
 using Ignite.Core.Storage;
+using Ignite.Core.Updates;
 using Ignite.Protocol.Input;
+using Velopack;
 
 namespace Ignite.App;
 
@@ -20,12 +22,16 @@ internal static class Program
 
     private static int Main()
     {
+        // First thing: the installer and the updater start the app with their own arguments, and
+        // an update downloaded during an earlier run is applied here. vpk pack checks for this call.
+        VelopackApp.Build().Run();
         using var host = new SdlHost("Ignite", 1280, 800);
         Theme.LoadFonts(ImGui.GetIO());
         Theme.Apply(host.ContentScale);
         Logo.Load(host.Renderer);
-        var services = new AppServices(AppPaths.Default());
+        var services = new AppServices(AppPaths.Default(), new VelopackUpdateFeed());
         services.Browser.Start();
+        services.Updater.Start();
         using var presenter = new VideoPresenter(host.Renderer, host.D3D11Device);
         using var gamepad = new GamepadInput();
         using var haptics = new HapticsOutput();
@@ -80,7 +86,7 @@ internal static class Program
         var screenshotPath = Environment.GetEnvironmentVariable("IGNITE_SCREENSHOT");
         var frameCount = 0;
         var running = true;
-        while (running)
+        while (running && !services.Updater.InstallRequested)
         {
             frameCount++;
             var streaming = stream is { State: StreamState.Connecting or StreamState.Streaming, IsStopping: false };
@@ -152,6 +158,7 @@ internal static class Program
         gamepad.ResetFeedback();
         stream?.GamepadFeedback.Clear();
         stream?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        services.Updater.InstallIfRequested();
         services.DisposeAsync().AsTask().GetAwaiter().GetResult();
         return 0;
     }

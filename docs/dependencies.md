@@ -34,6 +34,8 @@ The public OAuth client id/secret of the official Remote Play app are built in
 | Hexa.NET.ImGui | 2.2.9 | Dear ImGui bindings and native cimgui | MIT | |
 | Hexa.NET.ImGui.Backends, .Backends.SDL3 | 1.0.18 | ImGui SDL3 platform and SDL_Renderer backends | MIT | |
 | System.Security.Cryptography.ProtectedData | 10.0.0 | DPAPI for stored secrets on Windows | MIT | |
+| Velopack | 1.2.161 | Installed-version detection, update download and install | MIT | No dependencies on .NET 10. `vpk` adds its native updater executable to the packages. |
+| vpk (build only) | 1.2.161 | Packages releases and uploads them to GitHub (`dotnet tool restore`) | MIT | Local tool in `dotnet-tools.json`; keep it on the same version as Velopack |
 | Inter (font) | 4.1, `Inter-Regular.ttf` and `Inter-SemiBold.ttf` from the release archive | UI text | SIL OFL 1.1 | Embedded in `Ignite.App` (`Assets/Fonts`), unmodified. The license is shipped next to the executable as `licenses/Inter-LICENSE.txt`, as the OFL requires. |
 | Lucide (icon font) | 0.554.0, `lucide.ttf` from the `lucide-static` package | UI icons | ISC (parts from Feather: MIT) | Embedded in `Ignite.App` as `Assets/Fonts/Lucide.ttf`; license shipped as `licenses/Lucide-LICENSE.txt`. Codepoints are listed in `Ui/Icons.cs`; take new ones from the same version's `lucide.css`. |
 

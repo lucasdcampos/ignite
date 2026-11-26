@@ -24,6 +24,7 @@ the console's network relays the traffic.
 | Audio decoding | Concentus (managed Opus) | No native dependency; the console sends Opus. |
 | Crypto | `System.Security.Cryptography` (AES, HMAC-SHA256, SHA-256, secp256k1 ECDH) plus an own GHASH for the 16-byte-IV GMAC | Avoid native crypto dependencies. |
 | Protobuf | Google.Protobuf with an own `takion.proto` subset | Stream connection messages are protobuf (proto2). |
+| Installers and updates | Velopack, releases published on GitHub | One tool for a per-user Windows installer, a Linux AppImage and delta updates read straight from GitHub releases, so no update server is needed. See [Releases and updates](#releases-and-updates). |
 
 ## Projects
 
@@ -40,7 +41,7 @@ src/
                       a console, so clients on other networks can reach it.
                       Depends on the BCL and Ignite.Protocol (ports, subnet helpers) only.
   Ignite.Core         Settings and quality presets, registered consoles, PSN account,
-                      console browser (continuous discovery), console sharing.
+                      console browser (continuous discovery), console sharing, updates.
   Ignite.App          Executable "Ignite": SDL3 window, ImGui UI, video presentation, audio
                       output, gamepad/keyboard input, stream controller.
 tests/
@@ -247,6 +248,46 @@ its own.
 - Both computers need an Ignite with this feature: an older client never offers the key, so
   Watch never appears.
 
+## Releases and updates
+
+Releases are built by `.github/workflows/release.yml` when a version tag (`v1.2.3`) is pushed.
+The version comes from the tag. For each platform the workflow publishes a self-contained
+build, downloads the previous release with `vpk download github` (so `vpk pack` can add a
+delta package) and packages it with Velopack. A last job uploads both platforms to one GitHub
+release. `vpk` is pinned as a local tool in `dotnet-tools.json`; keep it on the same version as
+the `Velopack` package.
+
+- Windows: `Ignite-win-x64-Setup.exe` installs per user into `%LOCALAPPDATA%\Ignite` (no
+  administrator rights) with Desktop and Start menu shortcuts. A portable zip is published too.
+- Linux: an AppImage, which updates itself in place. Like any AppImage it needs FUSE to run.
+- The Velopack channel is the runtime id (`win-x64`, `linux-x64`). Channel names that are not
+  the platform default become part of every file name, so both platforms fit in one release
+  without clashing, and an installed copy follows the channel it was packaged with.
+- The packages are not code-signed yet, so Windows SmartScreen warns when the installer runs.
+
+In the app (`Ignite.Core/Updates`):
+
+- `VelopackApp.Build().Run()` is the first call in `Main`: the installer and the updater start
+  the app with their own arguments, and an update downloaded during an earlier run is applied
+  there before the window opens. `vpk pack` refuses an executable whose `Main` lacks the call.
+- `AppUpdater` checks the latest non-prerelease GitHub release once at start-up, through
+  `IUpdateFeed` (`VelopackUpdateFeed` in the app, fakes in tests). Failures are ignored: being
+  offline is normal and the next start checks again. Builds that were not installed (for
+  example `dotnet run`) never check; Settings shows them as a development build.
+- Nothing is downloaded until the user agrees. The home screen shows "Ignite x.y.z is
+  available" with a Download button, then the progress, then "Restart now". Restart now leaves
+  the main loop, disposes the services and hands over to Velopack, which installs the update
+  once the process has exited and starts Ignite again. Closing Ignite instead installs the
+  update on the next start. The banner lives on the launcher, so a stream is never interrupted.
+- `IGNITE_UPDATE_SOURCE` replaces GitHub with a local folder or URL of `vpk pack` output, to try
+  an update before publishing it.
+
+Verified on Windows on 2026-11-26 with locally packed versions and `IGNITE_UPDATE_SOURCE`: an
+installed 0.0.1 offered 0.0.2, downloaded it (as a 220 KB delta) only after Download was
+pressed, and restarted into 0.0.2; 0.0.2 then downloaded 0.0.3, was closed without
+restarting, and came back as 0.0.3 on the next start. The GitHub workflow and the Linux
+AppImage have not run yet; they will on the first tag.
+
 ## Testing approach
 
 - Protocol code is tested with known-answer vectors produced by a reference implementation
@@ -261,6 +302,8 @@ its own.
 - App tests check DualSense effects against byte vectors, capture SDL effect submission and
   resets with a virtual gamepad, and exercise native SDL resampling to verify channel
   routing, sample counts, continuity and the haptics queue's latency bound without hardware.
+- The update flow (check, download on request, failures, install on restart) is tested with a
+  fake `IUpdateFeed`, and the home screen is drawn in every update state.
 - Launcher logic (wake-and-play timing, console status, setup gating) has unit tests, and
   every page is drawn for a few frames with a headless Dear ImGui context to catch layout and
   id-stack errors.
