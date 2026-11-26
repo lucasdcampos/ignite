@@ -174,8 +174,10 @@ the console.
 
 Verified against a PS5 through the relay, from a client on another subnet: discovery is
 answered with the console's normal status, and a TCP 9295 session request gets the same
-answer as when sent directly. Not yet verified on a console: pairing, a full stream and
-whether the console minds the relay's address in the `Host` header of authenticated requests.
+answer as when sent directly. Pairing and a full stream from a friend's computer on another
+network, over a VPN, were confirmed on 2026-11-26, so the console accepts the relay's address
+in the `Host` header of authenticated requests. Not yet verified: waking the console through
+the relay.
 
 ## Testing approach
 
