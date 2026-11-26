@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Concentus;
 
 namespace Ignite.Media.Tests;
@@ -7,17 +8,20 @@ public class MediaTests
     [FfmpegTheory]
     [InlineData(VideoCodecKind.H264, "testsrc-320x240.h264", HardwareAcceleration.None)]
     [InlineData(VideoCodecKind.Hevc, "testsrc-320x240.hevc", HardwareAcceleration.None)]
+    [InlineData(VideoCodecKind.Hevc, "testsrc-320x240-pq.hevc", HardwareAcceleration.None)]
     [InlineData(VideoCodecKind.H264, "testsrc-320x240.h264", HardwareAcceleration.Auto)]
     [InlineData(VideoCodecKind.Hevc, "testsrc-320x240.hevc", HardwareAcceleration.Auto)]
+    [InlineData(VideoCodecKind.Hevc, "testsrc-320x240-pq.hevc", HardwareAcceleration.Auto)]
     public void VideoDecoder_DecodesAccessUnits(VideoCodecKind codec, string fixture, HardwareAcceleration acceleration)
     {
         var stream = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture));
         var units = FfmpegTestEnvironment.SplitAccessUnits(stream, codec);
         using var decoder = new VideoDecoder(codec, new VideoDecoderOptions(acceleration));
+        var hdr = fixture.Contains("-pq", StringComparison.Ordinal);
 
-        var frames = new List<(int Width, int Height, VideoPixelFormat Format, int Planes, bool Hardware)>();
+        var frames = new List<(int Width, int Height, VideoPixelFormat Format, VideoColorSpace ColorSpace, int Planes, bool Hardware)>();
         foreach (var unit in units)
-            decoder.Decode(unit, new DelegateSink(f => frames.Add((f.Width, f.Height, f.Format, f.Planes.Count, f.HardwareDecoded))));
+            decoder.Decode(unit, new DelegateSink(f => frames.Add((f.Width, f.Height, f.Format, f.ColorSpace, f.Planes.Count, f.HardwareDecoded))));
 
         Assert.Equal(10, units.Count);
         Assert.InRange(frames.Count, 9, 10);
@@ -27,9 +31,34 @@ public class MediaTests
             Assert.Equal(240, f.Height);
             Assert.Equal(f.Format == VideoPixelFormat.Yuv420P ? 3 : 2, f.Planes);
             Assert.Equal(decoder.HardwareDevice is not null, f.Hardware);
+            if (hdr)
+                Assert.Equal(VideoPixelFormat.P010, f.Format);
+            Assert.Equal(hdr ? VideoColorSpace.Bt2020Pq : VideoColorSpace.Bt709, f.ColorSpace);
         });
-        if (acceleration == HardwareAcceleration.None)
+        if (acceleration == HardwareAcceleration.None || !VideoDecoder.SupportsHardware(codec))
             Assert.Null(decoder.HardwareDevice);
+    }
+
+    [Fact]
+    public void SupportsHardware_IsFalseOnlyForH264OnWindows()
+    {
+        Assert.True(VideoDecoder.SupportsHardware(VideoCodecKind.Hevc));
+        Assert.Equal(!OperatingSystem.IsWindows(), VideoDecoder.SupportsHardware(VideoCodecKind.H264));
+    }
+
+    [FfmpegFact]
+    public void VideoDecoder_SoftwareP010KeepsTenBitSamples()
+    {
+        var stream = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "testsrc-320x240-pq.hevc"));
+        using var decoder = new VideoDecoder(VideoCodecKind.Hevc, new VideoDecoderOptions(HardwareAcceleration.None));
+        ushort[]? luma = null;
+
+        foreach (var unit in FfmpegTestEnvironment.SplitAccessUnits(stream, VideoCodecKind.Hevc))
+            decoder.Decode(unit, new DelegateSink(f => luma ??= MemoryMarshal.Cast<byte, ushort>(f.Planes[0].Data.Span).ToArray()));
+
+        Assert.NotNull(luma);
+        Assert.All(luma, sample => Assert.Equal(0, sample & 0x3F));
+        Assert.Contains(luma, sample => (sample >> 6) is > 64 and < 940);
     }
 
     [FfmpegFact]

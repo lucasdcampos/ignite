@@ -58,7 +58,7 @@ public sealed unsafe class VideoDecoder : IDisposable
         _context->thread_count = 0;
         _context->thread_type = ffmpeg.FF_THREAD_SLICE;
 
-        if (options.Acceleration == HardwareAcceleration.Auto)
+        if (options.Acceleration == HardwareAcceleration.Auto && SupportsHardware(codec))
         {
             if (options.SharedD3D11Device != 0 && OperatingSystem.IsWindows() && TryAttachSharedD3D11Device(options.SharedD3D11Device))
             {
@@ -82,6 +82,14 @@ public sealed unsafe class VideoDecoder : IDisposable
 
     /// <summary>True when pictures are delivered as <see cref="GpuVideoFrame"/>s.</summary>
     public bool KeepsFramesOnGpu { get; }
+
+    /// <summary>
+    /// False when <see cref="HardwareAcceleration.Auto"/> decodes <paramref name="codec"/> in
+    /// software anyway. FFmpeg's DXVA H.264 decoder (behind D3D11VA) keeps at most 32 slices
+    /// per picture and silently drops the rest, while a PS5 sends 1080p key frames with more
+    /// (docs/protocol/11-video.md#decoder-input).
+    /// </summary>
+    public static bool SupportsHardware(VideoCodecKind codec) => codec != VideoCodecKind.H264 || !OperatingSystem.IsWindows();
 
     /// <summary>Decodes one access unit and hands every picture produced to <paramref name="sink"/>.</summary>
     public void Decode(ReadOnlySpan<byte> accessUnit, IVideoFrameSink sink)
@@ -166,13 +174,16 @@ public sealed unsafe class VideoDecoder : IDisposable
             };
             if (format is not null)
             {
-                sink.OnGpuFrame(new GpuVideoFrame(ffmpeg.av_frame_clone(_frame), format.Value));
+                sink.OnGpuFrame(new GpuVideoFrame(ffmpeg.av_frame_clone(_frame), format.Value, ColorSpaceOf(_frame)));
                 return;
             }
         }
 
         EmitCpuFrame(sink);
     }
+
+    private static VideoColorSpace ColorSpaceOf(AVFrame* frame) =>
+        frame->color_trc == AVColorTransferCharacteristic.AVCOL_TRC_SMPTE2084 ? VideoColorSpace.Bt2020Pq : VideoColorSpace.Bt709;
 
     private void EmitCpuFrame(IVideoFrameSink sink)
     {
@@ -186,34 +197,39 @@ public sealed unsafe class VideoDecoder : IDisposable
             source = _transferFrame;
         }
 
-        var format = (AVPixelFormat)source->format;
-        VideoPixelFormat pixelFormat;
-        int[] planeHeights;
         var chromaHeight = (source->height + 1) / 2;
-        switch (format)
+        switch ((AVPixelFormat)source->format)
         {
             case AVPixelFormat.AV_PIX_FMT_NV12:
-                pixelFormat = VideoPixelFormat.Nv12;
-                planeHeights = [source->height, chromaHeight];
+                CopyPlanes(source, VideoPixelFormat.Nv12, [source->height, chromaHeight]);
                 break;
             case AVPixelFormat.AV_PIX_FMT_P010LE:
-                pixelFormat = VideoPixelFormat.P010;
-                planeHeights = [source->height, chromaHeight];
+                CopyPlanes(source, VideoPixelFormat.P010, [source->height, chromaHeight]);
                 break;
             case AVPixelFormat.AV_PIX_FMT_YUV420P:
             case AVPixelFormat.AV_PIX_FMT_YUVJ420P:
-                pixelFormat = VideoPixelFormat.Yuv420P;
-                planeHeights = [source->height, chromaHeight, chromaHeight];
+                CopyPlanes(source, VideoPixelFormat.Yuv420P, [source->height, chromaHeight, chromaHeight]);
+                break;
+            case AVPixelFormat.AV_PIX_FMT_YUV420P10LE:
+                PackP010(source);
                 break;
             default:
                 return;
         }
 
+        _output.Width = source->width;
+        _output.Height = source->height;
+        _output.ColorSpace = ColorSpaceOf(_frame);
+        _output.HardwareDecoded = hardware;
+        sink.OnCpuFrame(_output);
+    }
+
+    private void CopyPlanes(AVFrame* source, VideoPixelFormat format, int[] planeHeights)
+    {
         var total = 0;
         for (var i = 0; i < planeHeights.Length; i++)
             total += source->linesize[(uint)i] * planeHeights[i];
-        if (_buffer.Length < total)
-            _buffer = new byte[total];
+        var buffer = Rent(total);
 
         _output._planes.Clear();
         var offset = 0;
@@ -221,16 +237,47 @@ public sealed unsafe class VideoDecoder : IDisposable
         {
             var stride = source->linesize[(uint)i];
             var size = stride * planeHeights[i];
-            new ReadOnlySpan<byte>(source->data[(uint)i], size).CopyTo(_buffer.AsSpan(offset));
-            _output._planes.Add(new VideoPlane(_buffer.AsMemory(offset, size), stride));
+            new ReadOnlySpan<byte>(source->data[(uint)i], size).CopyTo(buffer.AsSpan(offset));
+            _output._planes.Add(new VideoPlane(buffer.AsMemory(offset, size), stride));
             offset += size;
         }
 
-        _output.Width = source->width;
-        _output.Height = source->height;
-        _output.Format = pixelFormat;
-        _output.HardwareDecoded = hardware;
-        sink.OnCpuFrame(_output);
+        _output.Format = format;
+    }
+
+    private void PackP010(AVFrame* source)
+    {
+        var width = source->width;
+        var height = source->height;
+        var chromaWidth = (width + 1) / 2;
+        var chromaHeight = (height + 1) / 2;
+        var lumaStride = width * 2;
+        var chromaStride = chromaWidth * 4;
+        var lumaSize = lumaStride * height;
+        var chromaSize = chromaStride * chromaHeight;
+        var buffer = Rent(lumaSize + chromaSize);
+
+        var sourceLumaStride = source->linesize[0];
+        var sourceChromaStride = source->linesize[1];
+        P010Packer.PackLuma(
+            new ReadOnlySpan<byte>(source->data[0], sourceLumaStride * height), sourceLumaStride,
+            buffer.AsSpan(0, lumaSize), lumaStride, width, height);
+        P010Packer.PackChroma(
+            new ReadOnlySpan<byte>(source->data[1], sourceChromaStride * chromaHeight),
+            new ReadOnlySpan<byte>(source->data[2], sourceChromaStride * chromaHeight), sourceChromaStride,
+            buffer.AsSpan(lumaSize, chromaSize), chromaStride, chromaWidth, chromaHeight);
+
+        _output._planes.Clear();
+        _output._planes.Add(new VideoPlane(buffer.AsMemory(0, lumaSize), lumaStride));
+        _output._planes.Add(new VideoPlane(buffer.AsMemory(lumaSize, chromaSize), chromaStride));
+        _output.Format = VideoPixelFormat.P010;
+    }
+
+    private byte[] Rent(int size)
+    {
+        if (_buffer.Length < size)
+            _buffer = new byte[size];
+        return _buffer;
     }
 
     private static void Check(int result, string action)

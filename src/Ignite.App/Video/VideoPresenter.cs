@@ -14,6 +14,11 @@ namespace Ignite.App.Video;
 internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
 {
     private const string TexturePointerProperty = "SDL.texture.d3d11.texture";
+    private const string CreateFormatProperty = "SDL.texture.create.format";
+    private const string CreateAccessProperty = "SDL.texture.create.access";
+    private const string CreateWidthProperty = "SDL.texture.create.width";
+    private const string CreateHeightProperty = "SDL.texture.create.height";
+    private const string CreateColorspaceProperty = "SDL.texture.create.colorspace";
 
     private readonly SDLRendererPtr _renderer;
     private readonly ID3D11Device? _device;
@@ -24,7 +29,7 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
     private GpuVideoFrame? _pendingGpu;
     private SDLTexturePtr _texture;
     private ID3D11Resource? _textureResource;
-    private (int Width, int Height, VideoPixelFormat Format) _textureShape;
+    private (int Width, int Height, VideoPixelFormat Format, VideoColorSpace ColorSpace) _textureShape;
 
     /// <param name="d3d11Device">The renderer's ID3D11Device, or zero when it is not Direct3D 11.</param>
     public VideoPresenter(SDLRendererPtr renderer, nint d3d11Device)
@@ -111,7 +116,7 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
         if (_texture.IsNull)
             return;
 
-        var (width, height, _) = _textureShape;
+        var (width, height, _, _) = _textureShape;
         var scale = Math.Min((float)outputWidth / width, (float)outputHeight / height);
         var destination = new SDLFRect
         {
@@ -146,7 +151,7 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
 
     private bool CopyGpuFrame(GpuVideoFrame frame)
     {
-        if (_context is null || !EnsureTexture(frame.Width, frame.Height, frame.Format, SDLTextureAccess.Static))
+        if (_context is null || !EnsureTexture(frame.Width, frame.Height, frame.Format, frame.ColorSpace, SDLTextureAccess.Static))
             return false;
 
         if (_textureResource is null)
@@ -167,7 +172,7 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
 
     private void Upload(PendingFrame frame)
     {
-        if (!EnsureTexture(frame.Width, frame.Height, frame.Format, SDLTextureAccess.Streaming))
+        if (!EnsureTexture(frame.Width, frame.Height, frame.Format, frame.ColorSpace, SDLTextureAccess.Streaming))
             return;
 
         fixed (byte* data = frame.Buffer)
@@ -189,9 +194,9 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
         }
     }
 
-    private bool EnsureTexture(int width, int height, VideoPixelFormat format, SDLTextureAccess access)
+    private bool EnsureTexture(int width, int height, VideoPixelFormat format, VideoColorSpace colorSpace, SDLTextureAccess access)
     {
-        var shape = (width, height, format);
+        var shape = (width, height, format, colorSpace);
         if (!_texture.IsNull && shape == _textureShape)
             return true;
 
@@ -202,7 +207,18 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
             VideoPixelFormat.P010 => SDLPixelFormat.P010,
             _ => SDLPixelFormat.Iyuv,
         };
-        _texture = SDL.CreateTexture(_renderer, pixelFormat, access, width, height);
+
+        // The colorspace must be explicit: SDL defaults YUV textures to BT.601 and P010 to an RGB
+        // HDR10 colorspace, which its Direct3D 11 renderer refuses for YUV data.
+        var sdlColorspace = colorSpace == VideoColorSpace.Bt2020Pq ? SDLColorspace.Bt2020Limited : SDLColorspace.Bt709Limited;
+        var properties = SDL.CreateProperties();
+        SDL.SetNumberProperty(properties, CreateFormatProperty, (long)pixelFormat);
+        SDL.SetNumberProperty(properties, CreateAccessProperty, (long)access);
+        SDL.SetNumberProperty(properties, CreateWidthProperty, width);
+        SDL.SetNumberProperty(properties, CreateHeightProperty, height);
+        SDL.SetNumberProperty(properties, CreateColorspaceProperty, (long)sdlColorspace);
+        _texture = SDL.CreateTextureWithProperties(_renderer, properties);
+        SDL.DestroyProperties(properties);
         _textureShape = shape;
         return !_texture.IsNull;
     }
@@ -224,6 +240,7 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
         public int Width { get; private set; }
         public int Height { get; private set; }
         public VideoPixelFormat Format { get; private set; }
+        public VideoColorSpace ColorSpace { get; private set; }
 
         public void CopyFrom(DecodedVideoFrame frame)
         {
@@ -243,6 +260,7 @@ internal sealed unsafe class VideoPresenter : IVideoFrameSink, IDisposable
             Width = frame.Width;
             Height = frame.Height;
             Format = frame.Format;
+            ColorSpace = frame.ColorSpace;
         }
     }
 }

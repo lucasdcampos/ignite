@@ -24,7 +24,8 @@ quality.
 - Guided first-run setup: PSN sign-in, pairing and quality
 - Automatic discovery of consoles on the local network, wake from rest mode
 - 360p to 1080p, 30/60 fps, H.264, HEVC or HEVC HDR, bitrate up to 100 Mbps
-- Hardware video decoding (D3D11VA on Windows, VAAPI on Linux) with software fallback
+- Hardware video decoding (D3D11VA on Windows, VAAPI on Linux) with software fallback; H.264 on
+  Windows is decoded in software, since D3D11VA cannot handle the PS5's H.264 slices
 - DualSense haptics and adaptive triggers, other SDL gamepads, keyboard fallback
 
 ## Building

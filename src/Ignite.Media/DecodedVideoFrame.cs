@@ -8,8 +8,18 @@ public enum VideoPixelFormat
     /// <summary>8-bit planar Y, U, V.</summary>
     Yuv420P,
 
-    /// <summary>10-bit in 16-bit words, Y plane followed by interleaved UV.</summary>
+    /// <summary>10-bit in the high bits of 16-bit words, Y plane followed by interleaved UV.</summary>
     P010,
+}
+
+/// <summary>How the YUV samples map to colors. Both are limited range, as the console sends them.</summary>
+public enum VideoColorSpace
+{
+    /// <summary>SDR: BT.709 primaries, transfer and matrix.</summary>
+    Bt709,
+
+    /// <summary>HDR10: BT.2020 primaries and matrix with the PQ (SMPTE ST 2084) transfer.</summary>
+    Bt2020Pq,
 }
 
 /// <summary>
@@ -27,6 +37,8 @@ public sealed class DecodedVideoFrame
     public int Height { get; internal set; }
 
     public VideoPixelFormat Format { get; internal set; }
+
+    public VideoColorSpace ColorSpace { get; internal set; }
 
     public bool HardwareDecoded { get; internal set; }
 

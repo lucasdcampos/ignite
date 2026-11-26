@@ -19,8 +19,8 @@ the console's network relays the traffic.
 | Runtime | .NET 10 (LTS) | Current LTS, good `Span`/SIMD support, AOT possible later. |
 | Window, input, audio output | SDL3 (Hexa.NET.SDL3) | One cross-platform layer for windowing, gamepads (DualSense included), audio. Native SDL3 ships with the package for Windows, Linux and macOS. |
 | UI | Dear ImGui (Hexa.NET.ImGui) with the SDL3 platform and SDL_Renderer backends, own theme and widgets, Inter and Lucide fonts embedded | The UI is a small launcher (setup, console cards, settings, PIN/passcode prompts). One window and one render loop for both UI and video. See [User interface](#user-interface). |
-| Video decoding | FFmpeg through FFmpeg.AutoGen, D3D11VA on Windows / VAAPI on Linux with software fallback | Only realistic option for H.264/HEVC with hardware decoding on both platforms. The build bundles an LGPL FFmpeg 9 (`build/Ffmpeg.targets`); `FfmpegLibrary` falls back to searching the usual install locations and accepts only libavcodec 63. |
-| Video presentation | SDL_Renderer textures (NV12, IYUV, P010) | Windows: the decoder shares SDL's D3D11 device and each picture is copied GPU-to-GPU into the SDL texture (no system-memory round trip). SDL creates that device single-threaded, so in this mode decoding runs on the render thread. Elsewhere pictures are copied back to system memory and uploaded. The newest picture always wins. |
+| Video decoding | FFmpeg through FFmpeg.AutoGen, D3D11VA on Windows / VAAPI on Linux with software fallback | Only realistic option for H.264/HEVC with hardware decoding on both platforms. H.264 is always decoded in software on Windows: FFmpeg's DXVA H.264 decoder drops slices past the 32nd and PS5 key frames have more (docs/protocol/11-video.md#decoder-input). Software decoding of a 1080p PS5 H.264 stream takes about 1 ms per frame. Software-decoded 10-bit pictures are repacked to P010. The build bundles an LGPL FFmpeg 9 (`build/Ffmpeg.targets`); `FfmpegLibrary` falls back to searching the usual install locations and accepts only libavcodec 63. |
+| Video presentation | SDL_Renderer textures (NV12, IYUV, P010) | Textures are created with the picture's colorspace (BT.709 limited, or BT.2020 PQ limited for HDR): SDL would otherwise assume BT.601 for YUV and refuse P010. On an SDR output SDL tone maps HDR pictures. Windows: the decoder shares SDL's D3D11 device and each picture is copied GPU-to-GPU into the SDL texture (no system-memory round trip). SDL creates that device single-threaded, so in this mode decoding runs on the render thread. Elsewhere pictures are copied back to system memory and uploaded. The newest picture always wins. |
 | Audio decoding | Concentus (managed Opus) | No native dependency; the console sends Opus. |
 | Crypto | `System.Security.Cryptography` (AES, HMAC-SHA256, SHA-256, secp256k1 ECDH) plus an own GHASH for the 16-byte-IV GMAC | Avoid native crypto dependencies. |
 | Protobuf | Google.Protobuf with an own `takion.proto` subset | Stream connection messages are protobuf (proto2). |
@@ -183,6 +183,8 @@ whether the console minds the relay's address in the `Host` header of authentica
   (inputs chosen by us, only the outputs are kept) and with in-process fake consoles that
   play the console side of each exchange over loopback sockets.
 - Media tests decode small H.264/HEVC clips generated with FFmpeg (`tests/Ignite.Media.Tests/Fixtures`).
+  `testsrc-320x240-pq.hevc` is 10-bit HEVC tagged BT.2020/PQ, like the PS5's HDR stream
+  (encoded with `hevc_nvenc -profile:v main10` and the `hevc_metadata` bitstream filter).
 - Relay tests forward real datagrams and TCP connections between loopback sockets that play
   the client and the console.
 - App tests check DualSense effects against byte vectors, capture SDL effect submission and

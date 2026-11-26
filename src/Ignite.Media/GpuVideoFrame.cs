@@ -10,10 +10,11 @@ public sealed unsafe class GpuVideoFrame : IDisposable
 {
     private AVFrame* _frame;
 
-    internal GpuVideoFrame(AVFrame* frame, VideoPixelFormat format)
+    internal GpuVideoFrame(AVFrame* frame, VideoPixelFormat format, VideoColorSpace colorSpace)
     {
         _frame = frame;
         Format = format;
+        ColorSpace = colorSpace;
         Width = frame->width;
         Height = frame->height;
         Texture = (nint)frame->data[0];
@@ -32,6 +33,8 @@ public sealed unsafe class GpuVideoFrame : IDisposable
 
     /// <summary><see cref="VideoPixelFormat.Nv12"/> or <see cref="VideoPixelFormat.P010"/>.</summary>
     public VideoPixelFormat Format { get; }
+
+    public VideoColorSpace ColorSpace { get; }
 
     public void Dispose()
     {

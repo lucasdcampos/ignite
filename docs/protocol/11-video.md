@@ -121,3 +121,16 @@ Frames are Annex B H.264 or HEVC access units. Feed them to the decoder as is, p
 the stream header when it changes. A client can also rewrite the reference frame index in
 P-slice headers when the referenced frame was lost, to keep decoding without waiting for an
 IDR; Ignite treats this as a later optimization.
+
+What a PS5 sends (seen in captures at 1080p):
+
+- **H.264**: Main profile, level 5.0, CABAC, `pic_order_cnt_type` 2, no B-frames, BT.709
+  limited range. Pictures are split into many slices: an IDR frame had **58 slices**, P-frames
+  from 6 to 17. FFmpeg's DXVA H.264 hwaccel (used by D3D11VA, DXVA2 and D3D12VA) keeps at
+  most 32 slices per picture and silently drops the rest, so everything below the 32nd slice
+  is lost and the damage spreads to the following P-frames. Decode H.264 without DXVA (in
+  software or another API, Vulkan decodes it correctly).
+- **HEVC**: Main profile, BT.709 limited range.
+- **HEVC HDR**: Main 10 profile (10-bit 4:2:0), BT.2020 primaries and matrix, PQ (SMPTE ST
+  2084) transfer, limited range. The colors must be interpreted with these values; the
+  stream header's VUI carries them.

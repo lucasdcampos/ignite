@@ -79,7 +79,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         State = StreamState.Connecting;
         Message = $"Connecting to {console.Nickname}...";
         _codec = settings.Quality.Codec == VideoCodec.H264 ? VideoCodecKind.H264 : VideoCodecKind.Hevc;
-        _hardwareDecoding = settings.HardwareDecoding;
+        _hardwareDecoding = settings.HardwareDecoding && VideoDecoder.SupportsHardware(_codec);
         var options = settings.Quality.ToStreamOptions(dualSense, settings.MaxReportedPacketLoss);
         _ = Task.Run(() => ConnectAsync(tables, address, console, options));
     }
