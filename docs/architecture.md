@@ -273,7 +273,9 @@ In the app (`Ignite.Core/Updates`):
 - `AppUpdater` checks the latest non-prerelease GitHub release once at start-up, through
   `IUpdateFeed` (`VelopackUpdateFeed` in the app, fakes in tests). Failures are ignored: being
   offline is normal and the next start checks again. Builds that were not installed (for
-  example `dotnet run`) never check; Settings shows them as a development build.
+  example `dotnet run`) never check.
+- The top bar shows the installed version next to the name ("dev" for a build that was not
+  installed), and Settings repeats it at the bottom.
 - Nothing is downloaded until the user agrees. The home screen shows "Ignite x.y.z is
   available" with a Download button, then the progress, then "Restart now". Restart now leaves
   the main loop, disposes the services and hands over to Velopack, which installs the update

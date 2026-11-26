@@ -136,6 +136,10 @@ internal sealed class Shell : IDisposable
         ImGui.SameLine(0, Theme.Dp(10));
         ImGui.SetCursorPosY(middle - Theme.Dp(14));
         Widgets.Text("Ignite", 22, bold: true);
+        ImGui.SameLine(0, Theme.Dp(8));
+        ImGui.SetCursorPosY(middle - Theme.Dp(7));
+        Widgets.Text(_services.Updater.CurrentVersion ?? "dev", Theme.SmallSize, Theme.TextFaint);
+        ImGui.SetItemTooltip(_services.Updater.CurrentVersion is null ? "Development build, updates are off" : "Installed version");
 
         var settingsX = width - Theme.Dp(28 + 44);
         var accountLabel = _services.Account.AccountId is null ? $"{Icons.User}  Sign in" : $"{Icons.CircleCheck}  Signed in";
