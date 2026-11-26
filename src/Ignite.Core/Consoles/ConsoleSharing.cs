@@ -30,6 +30,9 @@ public sealed class ConsoleSharing : IDisposable
 
     public int ClientCount => _relay?.Clients.Count ?? 0;
 
+    /// <summary>A friend's stream of the shared console that can be watched here, or null.</summary>
+    public IRelayedSession? WatchableSession => _relay?.WatchableSession;
+
     public void Share(ConsoleEntry entry)
     {
         Stop();

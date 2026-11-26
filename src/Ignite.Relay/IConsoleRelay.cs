@@ -12,4 +12,7 @@ public interface IConsoleRelay : IDisposable
 
     /// <summary>Remote clients with recent traffic or an open connection.</summary>
     IReadOnlyCollection<IPAddress> Clients { get; }
+
+    /// <summary>A remote client's stream that can be watched on this computer, or null.</summary>
+    IRelayedSession? WatchableSession { get; }
 }

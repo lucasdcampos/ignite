@@ -116,6 +116,56 @@ public sealed class UdpRelayTests : IDisposable
         Assert.Empty(relay.Clients);
     }
 
+    [Fact]
+    public async Task TapSeesTheConsolesDatagramsAfterTheClientGotThem()
+    {
+        var console = Udp();
+        var tap = new RecordingTap();
+        using var relay = new UdpRelay(Loopback(), (IPEndPoint)console.LocalEndPoint!, null, _ => true, tap: _ => tap);
+        var client = Udp();
+        await client.SendToAsync("hello"u8.ToArray(), relay.LocalEndPoint);
+        var (_, upstream) = await ReceiveAsync(console);
+
+        await console.SendToAsync("video"u8.ToArray(), upstream);
+
+        Assert.Equal("video"u8.ToArray(), (await ReceiveAsync(client)).Data);
+        Assert.Equal("video"u8.ToArray(), await tap.Datagrams.Reader.ReadAsync().AsTask().WaitAsync(Timeout));
+    }
+
+    [Fact]
+    public async Task ForwardingGoesOnWhenTheTapFails()
+    {
+        var console = Udp();
+        var tap = new RecordingTap { Fails = true };
+        using var relay = new UdpRelay(Loopback(), (IPEndPoint)console.LocalEndPoint!, null, _ => true, tap: _ => tap);
+        var client = Udp();
+        await client.SendToAsync("hello"u8.ToArray(), relay.LocalEndPoint);
+        var (_, upstream) = await ReceiveAsync(console);
+
+        await console.SendToAsync("first"u8.ToArray(), upstream);
+        await console.SendToAsync("second"u8.ToArray(), upstream);
+
+        Assert.Equal("first"u8.ToArray(), (await ReceiveAsync(client)).Data);
+        Assert.Equal("second"u8.ToArray(), (await ReceiveAsync(client)).Data);
+    }
+
+    [Fact]
+    public async Task ForgettingAClientDisposesItsTap()
+    {
+        var time = new ManualTime();
+        var console = Udp();
+        var tap = new RecordingTap();
+        using var relay = new UdpRelay(Loopback(), (IPEndPoint)console.LocalEndPoint!, null, _ => true, time, _ => tap);
+        var client = Udp();
+        await client.SendToAsync("hello"u8.ToArray(), relay.LocalEndPoint);
+        await ReceiveAsync(console);
+
+        time.Advance(TimeSpan.FromSeconds(31));
+        relay.RemoveIdle();
+
+        Assert.True(tap.Disposed);
+    }
+
     private static UdpRelay Relay(Socket console) => new(Loopback(), (IPEndPoint)console.LocalEndPoint!, null, _ => true);
 
     private static IPEndPoint Loopback() => new(IPAddress.Loopback, 0);
@@ -148,5 +198,23 @@ public sealed class UdpRelayTests : IDisposable
         {
             return false;
         }
+    }
+
+    private sealed class RecordingTap : IUdpTap
+    {
+        public System.Threading.Channels.Channel<byte[]> Datagrams { get; } = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+
+        public bool Fails { get; init; }
+
+        public bool Disposed { get; private set; }
+
+        public void OnConsoleDatagram(Span<byte> datagram)
+        {
+            if (Fails)
+                throw new InvalidOperationException("Tap failure.");
+            Datagrams.Writer.TryWrite(datagram.ToArray());
+        }
+
+        public void Dispose() => Disposed = true;
     }
 }

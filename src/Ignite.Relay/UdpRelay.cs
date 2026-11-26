@@ -20,6 +20,7 @@ internal sealed class UdpRelay : IDisposable
     private readonly SocketAddress? _broadcast;
     private readonly Func<IPAddress, bool> _accepts;
     private readonly TimeProvider _time;
+    private readonly Func<IPEndPoint, IUdpTap>? _tap;
     private readonly ConcurrentDictionary<SocketAddress, Mapping> _mappings = new();
     private readonly CancellationTokenSource _stop = new();
     private readonly ITimer _sweep;
@@ -28,12 +29,14 @@ internal sealed class UdpRelay : IDisposable
     /// Also sends every datagram here. Needed for the registration search, which a console in
     /// pairing mode only answers when it arrives as a broadcast.
     /// </param>
-    public UdpRelay(IPEndPoint listen, IPEndPoint console, IPEndPoint? broadcast, Func<IPAddress, bool> accepts, TimeProvider? time = null)
+    /// <param name="tap">Creates, per client, what sees the console's datagrams to that client.</param>
+    public UdpRelay(IPEndPoint listen, IPEndPoint console, IPEndPoint? broadcast, Func<IPAddress, bool> accepts, TimeProvider? time = null, Func<IPEndPoint, IUdpTap>? tap = null)
     {
         _console = console.Serialize();
         _broadcast = broadcast?.Serialize();
         _accepts = accepts;
         _time = time ?? TimeProvider.System;
+        _tap = tap;
         _listener = CreateSocket(listen.AddressFamily, enableBroadcast: false);
         try
         {
@@ -120,7 +123,7 @@ internal sealed class UdpRelay : IDisposable
             return null;
         }
 
-        var mapping = new Mapping(this, key, client, upstream);
+        var mapping = new Mapping(this, key, client, upstream, _tap?.Invoke(client));
         _mappings[key] = mapping;
         _ = Task.Run(() => mapping.ReceiveFromConsoleAsync(_stop.Token));
         return mapping;
@@ -138,7 +141,7 @@ internal sealed class UdpRelay : IDisposable
     private static bool IsTransient(SocketException e) =>
         e.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionRefused or SocketError.MessageSize;
 
-    private sealed class Mapping(UdpRelay relay, SocketAddress key, IPEndPoint client, Socket upstream) : IDisposable
+    private sealed class Mapping(UdpRelay relay, SocketAddress key, IPEndPoint client, Socket upstream, IUdpTap? tap) : IDisposable
     {
         private long _lastActivityTicks = relay._time.GetUtcNow().UtcTicks;
 
@@ -185,10 +188,27 @@ internal sealed class UdpRelay : IDisposable
                     continue;
                 Touch(relay._time.GetUtcNow());
                 await SendToClientAsync(buffer.AsMemory(0, received), cancellationToken);
+                Observe(buffer.AsSpan(0, received));
             }
         }
 
-        public void Dispose() => upstream.Dispose();
+        public void Dispose()
+        {
+            upstream.Dispose();
+            tap?.Dispose();
+        }
+
+        // Watching must never break the stream being watched, so nothing the tap throws reaches the relay.
+        private void Observe(Span<byte> datagram)
+        {
+            try
+            {
+                tap?.OnConsoleDatagram(datagram);
+            }
+            catch (Exception)
+            {
+            }
+        }
 
         private async ValueTask SendToClientAsync(ReadOnlyMemory<byte> datagram, CancellationToken cancellationToken)
         {

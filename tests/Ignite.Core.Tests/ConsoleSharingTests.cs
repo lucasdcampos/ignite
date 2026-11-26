@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Sockets;
 using Ignite.Core.Consoles;
 using Ignite.Protocol.Discovery;
+using Ignite.Protocol.Session;
+using Ignite.Protocol.Stream;
 using Ignite.Relay;
 
 namespace Ignite.Core.Tests;
@@ -24,6 +26,22 @@ public sealed class ConsoleSharingTests
         Assert.Equal([IPAddress.Parse("26.50.127.143")], sharing.ShareAddresses);
         Assert.Equal(1, sharing.ClientCount);
         Assert.Null(sharing.Error);
+    }
+
+    [Fact]
+    public void OffersTheRelaysWatchableSession()
+    {
+        using var sharing = Sharing();
+        Assert.Null(sharing.WatchableSession);
+        sharing.Share(Entry(Home));
+        Assert.Null(sharing.WatchableSession);
+
+        var session = new FakeSession();
+        _started[0].WatchableSession = session;
+
+        Assert.Same(session, sharing.WatchableSession);
+        sharing.Stop();
+        Assert.Null(sharing.WatchableSession);
     }
 
     [Fact]
@@ -115,6 +133,19 @@ public sealed class ConsoleSharingTests
 
         public IReadOnlyCollection<IPAddress> Clients { get; } = [IPAddress.Parse("26.12.34.56")];
 
+        public IRelayedSession? WatchableSession { get; set; }
+
         public void Dispose() => Disposed = true;
+    }
+
+    private sealed class FakeSession : IRelayedSession
+    {
+        public IPAddress Client { get; } = IPAddress.Parse("26.12.34.56");
+
+        public VideoCodec Codec => VideoCodec.Hevc;
+
+        public Task<string> Ended { get; } = new TaskCompletionSource<string>().Task;
+
+        public IDisposable Watch(IStreamSink sink) => throw new NotSupportedException();
     }
 }

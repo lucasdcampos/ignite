@@ -213,6 +213,22 @@ its own.
   client. While nobody watches it only tracks key positions, because the 32 bits on the
   wire cannot be resolved after a gap of 2 GiB or more. A sink that joins a running stream,
   or loses frames, needs a key frame, which the observer reports.
+- The spectator channel is Ignite's own, on TCP port 9320 of the relay (`SpectatorLink.Port`,
+  not a Remote Play port). After BANG the playing client connects to the console's address on
+  that port. A real console refuses the connection, which costs one refused connection per
+  session and nothing else; a relay accepts it only from the clients it serves. The client
+  sends one 38-byte offer: `IGNW`, version `1`, the stream's codec as an `RP-StreamingType`
+  value, and the 32-byte key material. The relay answers with one-byte signals: `1` someone
+  started watching, `2` stopped watching, `3` key frame needed. The client asks the console
+  for a key frame (`IDRREQUEST`) at most once per second, because key frames cost the player
+  bandwidth. It closes the link when its stream ends.
+- `UdpRelay` on port 9296 gives every client a tap that sees each console datagram right after
+  it was passed on, so watching adds no delay for the player, and nothing a tap throws reaches
+  the relay. `RelayedSessions` hands an offer's key to that client's sessions that have none.
+  A session is watchable once its key verified a packet and STREAMINFO was seen, and ends on
+  DISCONNECT, when the link closes or when the relay forgets the client.
+- The key travels over the VPN in the clear; it decrypts only that one session's video and
+  audio. If another program holds port 9320, sharing works without watching.
 
 ## Testing approach
 
@@ -223,7 +239,8 @@ its own.
   `testsrc-320x240-pq.hevc` is 10-bit HEVC tagged BT.2020/PQ, like the PS5's HDR stream
   (encoded with `hevc_nvenc -profile:v main10` and the `hevc_metadata` bitstream filter).
 - Relay tests forward real datagrams and TCP connections between loopback sockets that play
-  the client and the console.
+  the client and the console. Spectator tests run a link and a listener over loopback and
+  feed console packets encrypted with a known key to a relayed session.
 - App tests check DualSense effects against byte vectors, capture SDL effect submission and
   resets with a virtual gamepad, and exercise native SDL resampling to verify channel
   routing, sample counts, continuity and the haptics queue's latency bound without hardware.

@@ -19,6 +19,7 @@ public sealed class ConsoleRelay : IConsoleRelay
     private readonly List<IDisposable> _relays = [];
     private readonly List<UdpRelay> _udp = [];
     private readonly List<TcpRelay> _tcp = [];
+    private readonly RelayedSessions _sessions = new();
     private volatile RelayClientFilter _filter;
 
     private ConsoleRelay(IPAddress console)
@@ -35,6 +36,8 @@ public sealed class ConsoleRelay : IConsoleRelay
     public IReadOnlyCollection<IPAddress> Clients =>
         _udp.SelectMany(r => r.Clients).Concat(_tcp.SelectMany(r => r.Clients)).ToHashSet();
 
+    public IRelayedSession? WatchableSession => _sessions.Watchable;
+
     /// <exception cref="RelayException">A Remote Play port is already in use on this computer.</exception>
     public static ConsoleRelay Start(IPAddress console)
     {
@@ -44,8 +47,9 @@ public sealed class ConsoleRelay : IConsoleRelay
             relay.AddUdp(DiscoveryProtocol.ConsolePort, broadcast: false);
             relay.AddUdp(RegistrationClient.DefaultPort, broadcast: true);
             relay.AddTcp(CtrlChannel.DefaultPort);
-            relay.AddUdp(StreamConnection.DefaultPort, broadcast: false);
+            relay.AddUdp(StreamConnection.DefaultPort, broadcast: false, relay._sessions.Tap);
             relay.AddUdp(Senkusha.DefaultPort, broadcast: false);
+            relay.TryAddSpectatorListener();
             return relay;
         }
         catch
@@ -62,15 +66,28 @@ public sealed class ConsoleRelay : IConsoleRelay
             relay.Dispose();
     }
 
-    private void AddUdp(int port, bool broadcast)
+    private void AddUdp(int port, bool broadcast, Func<IPEndPoint, IUdpTap>? tap = null)
     {
         var broadcastAddress = broadcast ? LocalNetwork.BroadcastAddressFor(Console) : null;
         var relay = Listen("UDP", port, () => new UdpRelay(
             new IPEndPoint(IPAddress.Any, port),
             new IPEndPoint(Console, port),
             broadcastAddress is null ? null : new IPEndPoint(broadcastAddress, port),
-            Accepts));
+            Accepts,
+            tap: tap));
         _udp.Add(relay);
+    }
+
+    // Watching is optional: sharing still works when another program holds the spectator port.
+    private void TryAddSpectatorListener()
+    {
+        try
+        {
+            _relays.Add(new SpectatorListener(new IPEndPoint(IPAddress.Any, SpectatorLink.Port), Accepts, _sessions.Offer));
+        }
+        catch (SocketException)
+        {
+        }
     }
 
     private void AddTcp(int port)
