@@ -94,8 +94,8 @@ internal sealed class StreamOverlay
             _controls.Activity(now);
 
         var viewport = ImGui.GetMainViewport();
-        var panelBottom = viewport.WorkPos + new Vector2(viewport.WorkSize.X / 2, viewport.WorkSize.Y - Theme.Dp(StreamToolbar.Clearance + 14));
-        _panel.Draw(stream.Statistics(), stream.StartedWith, panelBottom, stream.Watching, stream.Watched);
+        var panelCorner = viewport.WorkPos + new Vector2(Theme.Dp(StreamToolbar.SideMargin), viewport.WorkSize.Y - Theme.Dp(StreamToolbar.Clearance + 12));
+        _panel.Draw(stream.Statistics(), stream.StartedWith, panelCorner, stream.Watching, stream.Watched);
 
         var opacity = _controls.Opacity(now, _panel.Visible || _toolbarHovered);
         if (opacity <= 0)

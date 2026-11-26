@@ -122,7 +122,7 @@ internal sealed unsafe class SdlHost : IDisposable
         ImGuiImplSDL3.SDLRenderer3NewFrame();
         ImGuiImplSDL3.NewFrame();
         ImGui.NewFrame();
-        SDL.SetRenderDrawColor(Renderer, 12, 12, 16, 255);
+        SDL.SetRenderDrawColor(Renderer, 9, 9, 11, 255);
         SDL.RenderClear(Renderer);
     }
 

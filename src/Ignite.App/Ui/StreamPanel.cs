@@ -39,18 +39,18 @@ internal sealed class StreamPanel
 
     public void Close() => Visible = false;
 
-    /// <summary>Draws the panel with its bottom edge centered on <paramref name="bottomCenter"/>.</summary>
+    /// <summary>Draws the panel with its bottom-left corner at <paramref name="bottomLeft"/>.</summary>
     /// <param name="watching">This computer only watches a friend's stream.</param>
     /// <param name="watched">The computer sharing the console watches this stream.</param>
-    public void Draw(StreamStatistics? statistics, AppSettings running, Vector2 bottomCenter, bool watching = false, bool watched = false)
+    public void Draw(StreamStatistics? statistics, AppSettings running, Vector2 bottomLeft, bool watching = false, bool watched = false)
     {
         if (!Visible)
             return;
 
         var viewport = ImGui.GetMainViewport();
         var width = MathF.Min(Theme.Dp(watching ? StatusWidth + 40 : Width), viewport.WorkSize.X - Theme.Dp(32));
-        var maxHeight = MathF.Max(Theme.Dp(200), bottomCenter.Y - viewport.WorkPos.Y - Theme.Dp(20));
-        ImGui.SetNextWindowPos(bottomCenter, ImGuiCond.Always, new Vector2(0.5f, 1));
+        var maxHeight = MathF.Max(Theme.Dp(200), bottomLeft.Y - viewport.WorkPos.Y - Theme.Dp(20));
+        ImGui.SetNextWindowPos(bottomLeft, ImGuiCond.Always, new Vector2(0, 1));
         ImGui.SetNextWindowSizeConstraints(new Vector2(width, 0), new Vector2(width, maxHeight));
         ImGui.PushStyleColor(ImGuiCol.WindowBg, Theme.WithAlpha(Theme.Background, 0.96f));
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.Dp(20, 16));

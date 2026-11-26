@@ -155,7 +155,7 @@ internal sealed class HomeScreen
         var tone = ToneColor(status.Tone);
 
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.Dp(20, 20));
-        ImGui.BeginChild(entry.HostId, size, ImGuiChildFlags.AlwaysUseWindowPadding, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+        ImGui.BeginChild(entry.HostId, size, ImGuiChildFlags.AlwaysUseWindowPadding | ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         ImGui.PopStyleVar();
 
         var drawList = ImGui.GetWindowDrawList();

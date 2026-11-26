@@ -14,22 +14,29 @@ internal static class Theme
     public const float TitleSize = 32;
     public const float HeroSize = 64;
 
-    public static readonly Vector4 Background = Rgb(0x0C0E13);
-    public static readonly Vector4 BackgroundGlow = Rgb(0x1B1B2A);
-    public static readonly Vector4 Surface = Rgb(0x161921);
-    public static readonly Vector4 SurfaceHover = Rgb(0x1D212B);
-    public static readonly Vector4 SurfaceRaised = Rgb(0x232835);
-    public static readonly Vector4 Border = Rgb(0x2A303C);
-    public static readonly Vector4 Text = Rgb(0xEDEFF4);
-    public static readonly Vector4 TextMuted = Rgb(0xA0A7B6);
-    public static readonly Vector4 TextFaint = Rgb(0x6B7283);
-    public static readonly Vector4 Accent = Rgb(0xEC5B24);
-    public static readonly Vector4 AccentHover = Rgb(0xFF7240);
-    public static readonly Vector4 AccentActive = Rgb(0xD04B18);
-    public static readonly Vector4 AccentSoft = Rgb(0xEC5B24, 0.16f);
-    public static readonly Vector4 Success = Rgb(0x3DD68C);
-    public static readonly Vector4 Warning = Rgb(0xF5B841);
-    public static readonly Vector4 Danger = Rgb(0xF26464);
+    // Monochrome: neutral greys, with white as the accent for primary actions and selections.
+    // Color is kept for status (ready, resting, errors).
+    public static readonly Vector4 Background = Rgb(0x09090B);
+    public static readonly Vector4 BackgroundGlow = Rgb(0x111113);
+    public static readonly Vector4 Surface = Rgb(0x131316);
+    public static readonly Vector4 SurfaceHover = Rgb(0x1A1A1E);
+    public static readonly Vector4 SurfaceRaised = Rgb(0x202024);
+    public static readonly Vector4 SurfaceRaisedHover = Rgb(0x2A2A2F);
+    public static readonly Vector4 SurfaceRaisedActive = Rgb(0x333338);
+    public static readonly Vector4 Border = Rgb(0x27272A);
+    public static readonly Vector4 Text = Rgb(0xFAFAFA);
+    public static readonly Vector4 TextMuted = Rgb(0xA1A1AA);
+    public static readonly Vector4 TextFaint = Rgb(0x71717A);
+    public static readonly Vector4 Accent = Rgb(0xF4F4F5);
+    public static readonly Vector4 AccentHover = Rgb(0xFFFFFF);
+    public static readonly Vector4 AccentActive = Rgb(0xD4D4D8);
+    public static readonly Vector4 AccentSoft = Rgb(0xFFFFFF, 0.08f);
+
+    /// <summary>Text and marks drawn on top of <see cref="Accent"/>.</summary>
+    public static readonly Vector4 OnAccent = Rgb(0x09090B);
+    public static readonly Vector4 Success = Rgb(0x4ADE80);
+    public static readonly Vector4 Warning = Rgb(0xFBBF24);
+    public static readonly Vector4 Danger = Rgb(0xF87171);
     public static readonly Vector4 Shade = Rgb(0x000000, 0.6f);
 
     /// <summary>Zero-terminated range list; the atlas keeps the pointer, so it is never freed.</summary>
@@ -67,7 +74,7 @@ internal static class Theme
         style.FontSizeBase = BodySize;
         style.WindowPadding = new Vector2(16, 14);
         style.WindowBorderSize = 0;
-        style.ChildBorderSize = 0;
+        style.ChildBorderSize = 1;
         style.PopupBorderSize = 1;
         style.FrameBorderSize = 0;
         style.WindowRounding = 16;
@@ -93,24 +100,24 @@ internal static class Theme
         colors[(int)ImGuiCol.PopupBg] = SurfaceRaised;
         colors[(int)ImGuiCol.ModalWindowDimBg] = Shade;
         colors[(int)ImGuiCol.Border] = Border;
-        colors[(int)ImGuiCol.FrameBg] = Rgb(0x0F1117);
-        colors[(int)ImGuiCol.FrameBgHovered] = Rgb(0x131620);
-        colors[(int)ImGuiCol.FrameBgActive] = Rgb(0x151925);
+        colors[(int)ImGuiCol.FrameBg] = Rgb(0x0E0E10);
+        colors[(int)ImGuiCol.FrameBgHovered] = Rgb(0x141417);
+        colors[(int)ImGuiCol.FrameBgActive] = Rgb(0x18181B);
         colors[(int)ImGuiCol.Button] = SurfaceRaised;
-        colors[(int)ImGuiCol.ButtonHovered] = Rgb(0x2D3342);
-        colors[(int)ImGuiCol.ButtonActive] = Rgb(0x363D4F);
+        colors[(int)ImGuiCol.ButtonHovered] = SurfaceRaisedHover;
+        colors[(int)ImGuiCol.ButtonActive] = SurfaceRaisedActive;
         colors[(int)ImGuiCol.Header] = SurfaceRaised;
-        colors[(int)ImGuiCol.HeaderHovered] = Rgb(0x2D3342);
-        colors[(int)ImGuiCol.HeaderActive] = Rgb(0x363D4F);
+        colors[(int)ImGuiCol.HeaderHovered] = SurfaceRaisedHover;
+        colors[(int)ImGuiCol.HeaderActive] = SurfaceRaisedActive;
         colors[(int)ImGuiCol.CheckMark] = Accent;
         colors[(int)ImGuiCol.SliderGrab] = Accent;
         colors[(int)ImGuiCol.SliderGrabActive] = AccentHover;
         colors[(int)ImGuiCol.ScrollbarBg] = Rgb(0x000000, 0);
-        colors[(int)ImGuiCol.ScrollbarGrab] = Rgb(0x2A303C);
-        colors[(int)ImGuiCol.ScrollbarGrabHovered] = Rgb(0x353C4B);
-        colors[(int)ImGuiCol.ScrollbarGrabActive] = Rgb(0x404859);
+        colors[(int)ImGuiCol.ScrollbarGrab] = Border;
+        colors[(int)ImGuiCol.ScrollbarGrabHovered] = SurfaceRaisedActive;
+        colors[(int)ImGuiCol.ScrollbarGrabActive] = Rgb(0x3F3F46);
         colors[(int)ImGuiCol.Separator] = Border;
-        colors[(int)ImGuiCol.TextSelectedBg] = Rgb(0xEC5B24, 0.35f);
+        colors[(int)ImGuiCol.TextSelectedBg] = Rgb(0xFFFFFF, 0.25f);
         colors[(int)ImGuiCol.NavCursor] = Text;
     }
 

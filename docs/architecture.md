@@ -109,10 +109,14 @@ technical options stay behind "Customize" and "Advanced".
     words (`StreamEndMessages`).
 - `Ui/StreamOverlay` draws over the video: the connecting screen, the stream controls, the
   stream settings and the console passcode prompt.
-  - `StreamToolbar` is a bar at the bottom with fullscreen, the PS button and a settings
-    button. It appears when the stream starts and whenever the mouse moves, and fades out
-    3 s after the mouse rests (`OverlayVisibility`); the mouse cursor hides with it. It never
-    takes keyboard or gamepad focus, so clicking it leaves the controller with the game.
+  - `StreamToolbar` places three round buttons along the bottom edge: settings in the
+    bottom-left corner, the PS button (white, with a grey "PS"; hidden while watching) in the
+    middle and fullscreen in the bottom-right corner. The corner buttons are translucent dark
+    circles, so they stay readable over any picture. The buttons appear when the stream starts
+    and whenever the mouse moves, and fade out 3 s after the mouse rests (`OverlayVisibility`);
+    the mouse cursor hides with them. They never take keyboard or gamepad focus, so clicking
+    them leaves the controller with the game. The settings panel opens above the settings
+    button.
   - `StreamPanel` (settings button or F1, closed with F1, Escape or its close button) shows
     the stream's status (picture size and frame rate, bandwidth, latency, decoder, recovered
     packets, requested quality) and the settings that can change while playing. VSync applies
@@ -132,7 +136,10 @@ technical options stay behind "Customize" and "Advanced".
   top of Dear ImGui items, so keyboard and gamepad navigation keep working; custom-drawn items
   draw their own focus ring. Escape or the gamepad's Circle button goes back from secondary
   pages.
-- `Ui/Theme` holds colors, the type scale and the ImGui style. Sizes are in design units
+- `Ui/Theme` holds colors, the type scale and the ImGui style. The look is minimal and
+  monochrome: near-black backgrounds, neutral grey surfaces with 1 px borders, and white as
+  the accent for primary buttons, selected options and switches (with dark text and marks on
+  top). Color is used only for status (ready, resting, warnings, errors). Sizes are in design units
   scaled by the window's content scale (`SdlHost.ContentScale`: display scale divided by pixel
   density) and updated when the window moves to a display with another scale. Text uses Inter
   with Lucide icons merged into each weight; Inter's own private-use glyphs are excluded so they

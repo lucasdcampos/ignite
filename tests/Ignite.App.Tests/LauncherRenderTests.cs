@@ -101,10 +101,16 @@ public sealed unsafe class LauncherRenderTests : IDisposable
         var playing = Render(() => panel.Draw(statistics, running, bottom));
         var watched = Render(() => panel.Draw(statistics, running, bottom, watched: true));
         var watching = Render(() => panel.Draw(statistics with { RttMs = null }, running, bottom, watching: true));
+        var together = Render(() =>
+        {
+            panel.Draw(statistics, running, bottom);
+            StreamToolbar.Draw(fullscreen: false, playing: true, opacity: 1, out _);
+        });
 
         Assert.True(drawn > 0);
         Assert.True(watched > playing);
         Assert.True(watching is > 0 && watching < playing);
+        Assert.True(together > playing);
         Assert.True(panel.Visible);
         panel.Close();
         Assert.Equal(0, Render(() => panel.Draw(statistics, running, bottom)));

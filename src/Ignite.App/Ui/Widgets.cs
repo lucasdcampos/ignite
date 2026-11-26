@@ -64,10 +64,10 @@ internal static class Widgets
     {
         var (normal, hovered, active, text) = kind switch
         {
-            ButtonKind.Primary => (Theme.Accent, Theme.AccentHover, Theme.AccentActive, new Vector4(1, 1, 1, 1)),
+            ButtonKind.Primary => (Theme.Accent, Theme.AccentHover, Theme.AccentActive, Theme.OnAccent),
             ButtonKind.Ghost => (Theme.WithAlpha(Theme.SurfaceRaised, 0), Theme.SurfaceHover, Theme.SurfaceRaised, Theme.TextMuted),
             ButtonKind.Danger => (Theme.WithAlpha(Theme.Danger, 0.14f), Theme.WithAlpha(Theme.Danger, 0.24f), Theme.WithAlpha(Theme.Danger, 0.32f), Theme.Danger),
-            _ => (Theme.SurfaceRaised, new Vector4(0.176f, 0.2f, 0.259f, 1), new Vector4(0.212f, 0.239f, 0.31f, 1), Theme.Text),
+            _ => (Theme.SurfaceRaised, Theme.SurfaceRaisedHover, Theme.SurfaceRaisedActive, Theme.Text),
         };
         ImGui.PushStyleColor(ImGuiCol.Button, normal);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hovered);
@@ -171,7 +171,7 @@ internal static class Widgets
         var trackColor = value ? Theme.Accent : ImGui.IsItemHovered() ? Theme.TextFaint : Theme.Border;
         drawList.AddRectFilled(track, track + switchSize, Theme.U32(trackColor), radius);
         var knobX = value ? track.X + switchSize.X - radius : track.X + radius;
-        drawList.AddCircleFilled(new Vector2(knobX, track.Y + radius), radius - Theme.Dp(4), Theme.U32(Theme.Text));
+        drawList.AddCircleFilled(new Vector2(knobX, track.Y + radius), radius - Theme.Dp(4), Theme.U32(value ? Theme.OnAccent : Theme.Text));
         FocusRing(start - Theme.Dp(6, 6), start + new Vector2(width, height) + Theme.Dp(6, 6), Theme.Dp(10));
         ImGui.Dummy(Theme.Dp(0, 4));
         return clicked;
@@ -207,9 +207,9 @@ internal static class Widgets
         var hovered = ImGui.IsItemHovered();
         var drawList = ImGui.GetWindowDrawList();
         var rounding = Theme.Dp(14);
-        var background = selected ? Theme.WithAlpha(Theme.Accent, 0.12f) : hovered ? Theme.SurfaceHover : Theme.Surface;
+        var background = selected ? Theme.AccentSoft : hovered ? Theme.SurfaceHover : Theme.Surface;
         drawList.AddRectFilled(position, position + size, Theme.U32(background), rounding);
-        drawList.AddRect(position, position + size, Theme.U32(selected ? Theme.Accent : Theme.Border), rounding, ImDrawFlags.None, Theme.Dp(selected ? 2 : 1));
+        drawList.AddRect(position, position + size, Theme.U32(selected ? Theme.Accent : Theme.Border), rounding, ImDrawFlags.None, Theme.Dp(selected ? 1.5f : 1));
 
         var padding = Theme.Dp(18);
         var cursor = position + new Vector2(padding, padding);
@@ -243,9 +243,9 @@ internal static class Widgets
 
         var drawList = ImGui.GetWindowDrawList();
         var rounding = Theme.Dp(12);
-        var background = selected ? Theme.WithAlpha(Theme.Accent, 0.12f) : hovered ? Theme.SurfaceHover : Theme.Surface;
+        var background = selected ? Theme.AccentSoft : hovered ? Theme.SurfaceHover : Theme.Surface;
         drawList.AddRectFilled(position, position + size, Theme.U32(background), rounding);
-        drawList.AddRect(position, position + size, Theme.U32(selected ? Theme.Accent : Theme.Border), rounding, ImDrawFlags.None, Theme.Dp(selected ? 2 : 1));
+        drawList.AddRect(position, position + size, Theme.U32(selected ? Theme.Accent : Theme.Border), rounding, ImDrawFlags.None, Theme.Dp(selected ? 1.5f : 1));
 
         var padding = Theme.Dp(16);
         var middle = position.Y + size.Y / 2;
@@ -317,7 +317,7 @@ internal static class Widgets
             var active = i == current;
             drawList.AddCircleFilled(center, radius, Theme.U32(done || active ? Theme.Accent : Theme.SurfaceRaised));
             var mark = done ? Icons.Check : (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            DrawCentered(drawList, Theme.SemiBold, Theme.SmallSize, center, done || active ? new Vector4(1, 1, 1, 1) : Theme.TextMuted, mark);
+            DrawCentered(drawList, Theme.SemiBold, Theme.SmallSize, center, done || active ? Theme.OnAccent : Theme.TextMuted, mark);
             DrawCentered(drawList, active ? Theme.SemiBold : Theme.Regular, Theme.SmallSize, center + new Vector2(0, radius + Theme.Dp(16)), active ? Theme.Text : Theme.TextMuted, names[i]);
         }
 
@@ -360,7 +360,7 @@ internal static class Widgets
     public static void BeginCard(string id, float width = Fill, float height = 0)
     {
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.Dp(24, 22));
-        var flags = ImGuiChildFlags.AlwaysUseWindowPadding | (height == 0 ? ImGuiChildFlags.AutoResizeY : ImGuiChildFlags.None);
+        var flags = ImGuiChildFlags.AlwaysUseWindowPadding | ImGuiChildFlags.Borders | (height == 0 ? ImGuiChildFlags.AutoResizeY : ImGuiChildFlags.None);
         ImGui.BeginChild(id, new Vector2(width, height), flags, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         ImGui.PopStyleVar();
     }
