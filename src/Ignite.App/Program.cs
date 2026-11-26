@@ -51,6 +51,18 @@ internal static class Program
             host.SetFullscreen(fullscreen);
         }
 
+        shell.WatchRequested += (session, consoleName) =>
+        {
+            stream?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            gamepad.ResetFeedback();
+            haptics.SetEnabled(false);
+            presenter.Clear();
+            stream = new StreamController(presenter, haptics);
+            stream.Watch(session, consoleName, services.Settings.Current);
+            playing = null;
+            fullscreen = services.Settings.Current.Fullscreen;
+            host.SetFullscreen(fullscreen);
+        };
         shell.PlayRequested += (entry, console) =>
         {
             if (entry.Address is not null)
@@ -105,7 +117,7 @@ internal static class Program
             host.SetVSync(services.Settings.Current.VSync);
             host.BeginFrame();
 
-            haptics.SetEnabled(streaming && gamepad.IsUsbDualSense);
+            haptics.SetEnabled(streaming && !stream!.Watching && gamepad.IsUsbDualSense);
             if (!streaming)
             {
                 stream?.GamepadFeedback.Clear();

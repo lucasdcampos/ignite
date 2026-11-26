@@ -92,13 +92,19 @@ public sealed unsafe class LauncherRenderTests : IDisposable
         var statistics = new StreamStatistics(59.9, 14.2, 3, "d3d11va (zero-copy)", 1920, 1080, 4);
         var bottom = new Vector2(640, 600);
 
-        Render(() => StreamToolbar.Draw(fullscreen: false, opacity: 1, out _));
-        Render(() => StreamToolbar.Draw(fullscreen: true, opacity: 0.5f, out _));
+        Render(() => StreamToolbar.Draw(fullscreen: false, playing: true, opacity: 1, out _));
+        Render(() => StreamToolbar.Draw(fullscreen: true, playing: false, opacity: 0.5f, out _));
         panel.Open(running);
         Render(() => panel.Draw(null, running, bottom));
         var drawn = Render(() => panel.Draw(statistics, running with { Quality = running.Quality with { BitrateKbps = 40000 } }, bottom));
 
+        var playing = Render(() => panel.Draw(statistics, running, bottom));
+        var watched = Render(() => panel.Draw(statistics, running, bottom, watched: true));
+        var watching = Render(() => panel.Draw(statistics with { RttMs = null }, running, bottom, watching: true));
+
         Assert.True(drawn > 0);
+        Assert.True(watched > playing);
+        Assert.True(watching is > 0 && watching < playing);
         Assert.True(panel.Visible);
         panel.Close();
         Assert.Equal(0, Render(() => panel.Draw(statistics, running, bottom)));

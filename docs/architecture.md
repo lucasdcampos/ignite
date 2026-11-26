@@ -229,6 +229,15 @@ its own.
   DISCONNECT, when the link closes or when the relay forgets the client.
 - The key travels over the VPN in the clear; it decrypts only that one session's video and
   audio. If another program holds port 9320, sharing works without watching.
+- In the app, the home screen of the sharing computer shows "Your friend is playing" with a
+  Watch button while such a session exists. `StreamController.Watch` attaches to the session
+  instead of connecting: the decoder follows the codec from the offer, input, gamepad feedback
+  and haptics are left out, and the connecting screen stays until the first frame arrives.
+  The toolbar has no PS button and the stream settings show status and display only, with
+  "Stop watching". The view ends with the friend's stream. The player's stream settings say
+  when the sharing computer is watching.
+- Both computers need an Ignite with this feature: an older client never offers the key, so
+  Watch never appears.
 
 ## Testing approach
 

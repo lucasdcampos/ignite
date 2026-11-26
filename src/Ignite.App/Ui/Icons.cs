@@ -10,6 +10,7 @@ internal static class Icons
     public const string CircleCheck = "\ue226";
     public const string Clipboard = "\ue3e8";
     public const string EllipsisVertical = "\ue0b7";
+    public const string Eye = "\ue0ba";
     public const string ExternalLink = "\ue0b9";
     public const string Gamepad = "\ue0df";
     public const string Gauge = "\ue1bf";

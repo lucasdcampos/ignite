@@ -11,7 +11,7 @@ internal enum ToolbarAction
     Settings,
 }
 
-/// <summary>The bar at the bottom of the stream: fullscreen, the PS button and the stream settings.</summary>
+/// <summary>The bar at the bottom of the stream: fullscreen, the PS button (only when playing) and the stream settings.</summary>
 internal static class StreamToolbar
 {
     private const float ButtonSize = 48;
@@ -26,7 +26,7 @@ internal static class StreamToolbar
     /// Draws the bar. It never takes keyboard or gamepad focus, so clicking it leaves the
     /// controller with the game.
     /// </summary>
-    public static ToolbarAction Draw(bool fullscreen, float opacity, out bool hovered)
+    public static ToolbarAction Draw(bool fullscreen, bool playing, float opacity, out bool hovered)
     {
         var viewport = ImGui.GetMainViewport();
         var anchor = viewport.WorkPos + new Vector2(viewport.WorkSize.X / 2, viewport.WorkSize.Y - Theme.Dp(BottomMargin));
@@ -48,10 +48,14 @@ internal static class StreamToolbar
         if (Widgets.IconButton(fullscreen ? Icons.Minimize : Icons.Maximize, "fullscreen", fullscreen ? "Exit fullscreen (F11)" : "Fullscreen (F11)", ButtonSize))
             action = ToolbarAction.Fullscreen;
         ImGui.SameLine();
-        ImGui.SetCursorPosY(top);
-        if (PsButton())
-            action = ToolbarAction.PsButton;
-        ImGui.SameLine();
+        if (playing)
+        {
+            ImGui.SetCursorPosY(top);
+            if (PsButton())
+                action = ToolbarAction.PsButton;
+            ImGui.SameLine();
+        }
+
         ImGui.SetCursorPosY(top + offset);
         if (Widgets.IconButton(Icons.Settings, "settings", "Stream settings (F1)", ButtonSize))
             action = ToolbarAction.Settings;

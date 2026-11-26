@@ -6,6 +6,8 @@ namespace Ignite.App.Streaming;
 /// <summary>Turns console disconnect reasons and connection errors into advice a player can act on.</summary>
 internal static class StreamEndMessages
 {
+    public const string WatchedStreamEnded = "The stream you were watching has ended.";
+
     /// <summary>For a DISCONNECT message sent by the console.</summary>
     public static string ForDisconnect(string reason) =>
         reason.Contains("AvCap failed to initialize video", StringComparison.OrdinalIgnoreCase)

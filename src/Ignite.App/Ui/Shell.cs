@@ -2,6 +2,7 @@ using System.Numerics;
 using Hexa.NET.ImGui;
 using Ignite.App.Streaming;
 using Ignite.Core.Consoles;
+using Ignite.Relay;
 
 namespace Ignite.App.Ui;
 
@@ -39,6 +40,7 @@ internal sealed class Shell : IDisposable
         _setup.Finished += () => Page = Page.Home;
         _home.PlayRequested += (entry, console) => PlayRequested?.Invoke(entry, console);
         _home.PairRequested += OpenPairing;
+        _home.WatchRequested += (session, name) => WatchRequested?.Invoke(session, name);
         _settings.BackRequested += () => Page = Page.Home;
         _settings.PairRequested += OpenPairing;
         _settings.SetupRequested += () =>
@@ -51,6 +53,8 @@ internal sealed class Shell : IDisposable
     }
 
     public event Action<ConsoleEntry, StoredConsole>? PlayRequested;
+
+    public event Action<IRelayedSession, string>? WatchRequested;
 
     public Page Page { get; private set; }
 

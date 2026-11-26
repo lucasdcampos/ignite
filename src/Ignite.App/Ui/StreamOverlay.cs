@@ -95,7 +95,7 @@ internal sealed class StreamOverlay
 
         var viewport = ImGui.GetMainViewport();
         var panelBottom = viewport.WorkPos + new Vector2(viewport.WorkSize.X / 2, viewport.WorkSize.Y - Theme.Dp(StreamToolbar.Clearance + 14));
-        _panel.Draw(stream.Statistics(), stream.StartedWith, panelBottom);
+        _panel.Draw(stream.Statistics(), stream.StartedWith, panelBottom, stream.Watching, stream.Watched);
 
         var opacity = _controls.Opacity(now, _panel.Visible || _toolbarHovered);
         if (opacity <= 0)
@@ -105,7 +105,7 @@ internal sealed class StreamOverlay
             return;
         }
 
-        switch (StreamToolbar.Draw(fullscreen, opacity, out _toolbarHovered))
+        switch (StreamToolbar.Draw(fullscreen, playing: !stream.Watching, opacity, out _toolbarHovered))
         {
             case ToolbarAction.Fullscreen:
                 FullscreenRequested?.Invoke();

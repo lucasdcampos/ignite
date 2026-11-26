@@ -3,6 +3,7 @@ using System.Numerics;
 using Hexa.NET.ImGui;
 using Ignite.Core.Consoles;
 using Ignite.Protocol.Discovery;
+using Ignite.Relay;
 
 namespace Ignite.App.Ui;
 
@@ -24,6 +25,9 @@ internal sealed class HomeScreen
     public event Action<ConsoleEntry, StoredConsole>? PlayRequested;
 
     public event Action? PairRequested;
+
+    /// <summary>The user wants to watch a friend's stream of the shared console.</summary>
+    public event Action<IRelayedSession, string>? WatchRequested;
 
     public void ShowNotice(string message) => _notice = message;
 
@@ -77,6 +81,11 @@ internal sealed class HomeScreen
         var name = entries.FirstOrDefault(e => e.HostId == hostId)?.Name ?? hostId;
         if (Widgets.Banner("sharing", Icons.Share, SharingMessage(name, sharing.ShareAddresses, sharing.ClientCount), Theme.Accent, "Stop sharing"))
             sharing.Stop();
+        if (sharing.WatchableSession is { } session
+            && Widgets.Banner("watch", Icons.Eye, $"Your friend is playing on {name}. You can watch without taking part.", Theme.Success, "Watch"))
+        {
+            WatchRequested?.Invoke(session, name);
+        }
     }
 
     internal static string SharingMessage(string name, IReadOnlyList<IPAddress> addresses, int clients)

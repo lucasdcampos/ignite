@@ -13,6 +13,7 @@ using Ignite.Protocol.Crypto;
 using Ignite.Protocol.Input;
 using Ignite.Protocol.Session;
 using Ignite.Protocol.Stream;
+using Ignite.Relay;
 
 namespace Ignite.App.Streaming;
 
@@ -24,11 +25,13 @@ internal enum StreamState
     Ended,
 }
 
-internal sealed record StreamStatistics(double Fps, double VideoMbps, long FecRecoveries, string? Decoder, int Width, int Height, int RttMs);
+internal sealed record StreamStatistics(double Fps, double VideoMbps, long FecRecoveries, string? Decoder, int Width, int Height, int? RttMs);
 
 /// <summary>
 /// Runs one Remote Play session: connects, decodes video on its own thread, plays audio and
 /// forwards controller input. Console feedback for the gamepad is queued for the UI thread.
+/// Instead of playing it can watch a friend's session that passes through this computer's relay
+/// (docs/architecture.md#watching-a-shared-console).
 /// </summary>
 internal sealed class StreamController : IStreamSink, IAsyncDisposable
 {
@@ -45,6 +48,8 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     private Task? _stopping;
     private readonly Stopwatch _statsClock = Stopwatch.StartNew();
     private RemotePlaySession? _session;
+    private SpectatorLink? _spectators;
+    private IDisposable? _watch;
     private VideoDecoder? _decoder;
     private OpusAudioDecoder? _audioDecoder;
     private AudioOutput? _audio;
@@ -78,6 +83,12 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     public bool PasscodeRetry { get; private set; }
 
+    /// <summary>This computer only watches a friend's session: no input, and the friend chose the quality.</summary>
+    public bool Watching { get; private set; }
+
+    /// <summary>The computer sharing the console is watching this session.</summary>
+    public bool Watched => _spectators?.Watched ?? false;
+
     /// <summary>Gamepad feedback from the console, applied by the UI thread.</summary>
     public ConcurrentQueue<Action<Input.GamepadInput>> GamepadFeedback { get; } = new();
 
@@ -93,6 +104,19 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         _ = Task.Run(() => ConnectAsync(tables, address, console, options));
     }
 
+    /// <summary>Shows a friend's session of the shared console, without taking part in it.</summary>
+    public void Watch(IRelayedSession session, string consoleName, AppSettings settings)
+    {
+        Watching = true;
+        State = StreamState.Connecting;
+        Message = $"Waiting for the picture from {consoleName}...";
+        StartedWith = settings;
+        _codec = session.Codec == VideoCodec.H264 ? VideoCodecKind.H264 : VideoCodecKind.Hevc;
+        _hardwareDecoding = settings.HardwareDecoding && VideoDecoder.SupportsHardware(_codec);
+        _watch = session.Watch(this);
+        _ = Task.Run(() => WatchAsync(session));
+    }
+
     public void AnswerPasscode(string? passcode) => _passcodeRequest?.TrySetResult(passcode);
 
     public void UpdateInput(in ControllerState state) => _session?.Stream.UpdateController(state);
@@ -100,7 +124,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     public StreamStatistics? Statistics()
     {
         var elapsed = _statsClock.Elapsed.TotalSeconds;
-        if (elapsed >= 1 && _session is not null)
+        if (elapsed >= 1 && (_session is not null || Watching))
         {
             var frames = _presenter.FramesPresented;
             var bytes = Interlocked.Read(ref _videoBytes);
@@ -112,7 +136,7 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
                 DescribeDecoder(),
                 width,
                 height,
-                _session.Network.RttMilliseconds);
+                _session?.Network.RttMilliseconds);
             _framesAtLastStats = frames;
             _bytesAtLastStats = bytes;
             _statsClock.Restart();
@@ -133,6 +157,12 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
         _passcodeRequest?.TrySetResult(null);
         await _stop.CancelAsync();
         _frames.Writer.TryComplete();
+        _watch?.Dispose();
+        _watch = null;
+        // Closing the link first ends a watcher's view before the session goes away.
+        if (_spectators is not null)
+            await _spectators.DisposeAsync();
+        _spectators = null;
         if (_session is not null)
             await _session.DisposeAsync();
         _session = null;
@@ -181,6 +211,8 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
 
     void IStreamSink.OnVideoFrame(ReadOnlyMemory<byte> frame, ReadOnlyMemory<byte>? streamHeader, bool recoveredWithFec)
     {
+        if (Watching && State == StreamState.Connecting)
+            State = StreamState.Streaming;
         Interlocked.Add(ref _videoBytes, frame.Length);
         if (recoveredWithFec)
             Interlocked.Increment(ref _fecRecoveries);
@@ -191,7 +223,8 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
     {
         if (haptics)
         {
-            _haptics.Play(frame);
+            if (!Watching)
+                _haptics.Play(frame);
             return;
         }
         if (_audioDecoder is null || _audio is null)
@@ -230,6 +263,8 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
                 _stop.Token);
             State = StreamState.Streaming;
             Message = null;
+            var stream = _session.Stream;
+            _spectators = SpectatorLink.Start(new IPEndPoint(address, SpectatorLink.Port), options.Codec, stream.ExportConsoleKey(), stream.RequestKeyFrameAsync);
             var reason = await _session.WaitForEndAsync();
             Message ??= StreamEndMessages.ForEnd(reason);
         }
@@ -245,6 +280,23 @@ internal sealed class StreamController : IStreamSink, IAsyncDisposable
             Message = null;
         State = StreamState.Ended;
         // Release the session right away so the console stops streaming and can accept the next one.
+        await StopAsync();
+    }
+
+    private async Task WatchAsync(IRelayedSession session)
+    {
+        try
+        {
+            await session.Ended.WaitAsync(_stop.Token);
+            Message ??= StreamEndMessages.WatchedStreamEnded;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        if (IsStopping)
+            Message = null;
+        State = StreamState.Ended;
         await StopAsync();
     }
 
