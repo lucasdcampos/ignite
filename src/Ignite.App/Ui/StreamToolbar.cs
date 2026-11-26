@@ -12,16 +12,18 @@ internal enum ToolbarAction
 }
 
 /// <summary>
-/// The stream controls along the bottom edge: settings on the left, the PS button (only when
-/// playing) in the middle and fullscreen on the right.
+/// The stream controls along the bottom edge, over a translucent black bar as wide as the
+/// window: settings on the left, the PS button (only when playing) in the middle and
+/// fullscreen on the right.
 /// </summary>
 internal static class StreamToolbar
 {
     private const float ButtonSize = 44;
     private const float Margin = 24;
+    private const float BarOpacity = 0.5f;
 
-    /// <summary>Distance from the bottom of the window to the top of the buttons, in design units.</summary>
-    public const float Clearance = Margin + ButtonSize;
+    /// <summary>Height of the bar along the bottom of the window, in design units.</summary>
+    public const float Clearance = ButtonSize + Margin * 2;
 
     /// <summary>Distance from the window's side edges to the corner buttons, in design units.</summary>
     public const float SideMargin = Margin;
@@ -41,6 +43,7 @@ internal static class StreamToolbar
         var action = ToolbarAction.None;
         hovered = false;
         ImGui.PushStyleVar(ImGuiStyleVar.Alpha, opacity);
+        DrawBar(viewport);
         if (Place("settings", new Vector2(left, bottom), new Vector2(0, 1), () => RoundButton(Icons.Settings, "Stream settings (F1)"), ref hovered))
             action = ToolbarAction.Settings;
         if (playing && Place("ps", new Vector2(middle, bottom), new Vector2(0.5f, 1), PsButton, ref hovered))
@@ -50,6 +53,14 @@ internal static class StreamToolbar
             action = ToolbarAction.Fullscreen;
         ImGui.PopStyleVar();
         return action;
+    }
+
+    /// <summary>Drawn behind every window but over the video, so the buttons sit on top of it.</summary>
+    private static void DrawBar(ImGuiViewportPtr viewport)
+    {
+        var max = viewport.WorkPos + viewport.WorkSize;
+        var min = new Vector2(viewport.WorkPos.X, max.Y - Theme.Dp(Clearance));
+        ImGui.GetBackgroundDrawList(viewport).AddRectFilled(min, max, ImGui.GetColorU32(new Vector4(0, 0, 0, BarOpacity)));
     }
 
     /// <summary>Each button gets its own small window, so the space between them stays free.</summary>

@@ -109,14 +109,15 @@ technical options stay behind "Customize" and "Advanced".
     words (`StreamEndMessages`).
 - `Ui/StreamOverlay` draws over the video: the connecting screen, the stream controls, the
   stream settings and the console passcode prompt.
-  - `StreamToolbar` places three round buttons along the bottom edge: settings in the
+  - `StreamToolbar` places three round buttons on a black bar at 50 % opacity that spans the
+    window's bottom edge (drawn over the video, under every window): settings in the
     bottom-left corner, the PS button (white, with a grey "PS"; hidden while watching) in the
     middle and fullscreen in the bottom-right corner. The corner buttons are translucent dark
     circles, so they stay readable over any picture. The buttons appear when the stream starts
     and whenever the mouse moves, and fade out 3 s after the mouse rests (`OverlayVisibility`);
     the mouse cursor hides with them. They never take keyboard or gamepad focus, so clicking
-    them leaves the controller with the game. The settings panel opens above the settings
-    button.
+    them leaves the controller with the game. The bar fades with the buttons. The settings
+    panel opens above the bar, over the settings button.
   - `StreamPanel` (settings button or F1, closed with F1, Escape or its close button) shows
     the stream's status (picture size and frame rate, bandwidth, latency, decoder, recovered
     packets, requested quality) and the settings that can change while playing. VSync applies
